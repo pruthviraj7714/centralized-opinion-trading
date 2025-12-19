@@ -1,8 +1,8 @@
 {
-  "name": "db",
+  "name": "@repo/db",
   "module": "index.ts",
   "type": "module",
-  "scripts": {
+  "exports": {
     ".": "./index.ts"
   },
   "private": true,

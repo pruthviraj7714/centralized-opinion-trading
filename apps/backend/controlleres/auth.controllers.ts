@@ -101,18 +101,19 @@ const loginUserController = async (
     const token = sign(
       {
         id: user.id,
-        role: "USER",
+        role: user.role,
       },
       JWT_SECRET,
       {
         expiresIn: "7d",
       }
     );
-
+    
     res.status(200).json({
       message: "Successful Login",
       token,
       id: user.id,
+      role: user.role,
     });
   } catch (error: any) {
     console.log(error);

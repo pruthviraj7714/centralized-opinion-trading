@@ -22,7 +22,7 @@ export const CreateMarketSchema = z.object({
   description: z
     .string()
     .min(5, { error: "Description should be at least of 15 characters" }),
-  status: z.enum(["OPEN", "CLOSED", "RESOLVED"], { error: "Invalid Status" }),
-  expiryTime: z.date({ error: "Invalid Date" }),
-  resolvedOutcome: z.enum(["YES", "NO"], { error: "Invalid Outcome" }),
+  expiryTime: z.coerce.date({
+    error: "It should be valid Date",
+  }),
 });

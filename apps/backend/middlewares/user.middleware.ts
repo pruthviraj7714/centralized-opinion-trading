@@ -9,7 +9,7 @@ export const requireAuth = (
 ) => {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith("Bearer")) {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     res.status(401).json({
       message: "Missing or Invalid Token",
     });
@@ -21,11 +21,16 @@ export const requireAuth = (
   try {
     const decoded = verify(token, JWT_SECRET) as JwtPayload;
 
-    if (!decoded || !decoded.user.id || !decoded.user.role) {
+    if (!decoded || !decoded.id || !decoded.role) {
       res.status(401).json({ message: "Invalid token payload" });
       return;
     }
-    req.user = decoded.user;
+
+    req.user = {
+      id: decoded.id,
+      role: decoded.role,
+    };
+
     next();
   } catch (error) {
     res.status(401).json({

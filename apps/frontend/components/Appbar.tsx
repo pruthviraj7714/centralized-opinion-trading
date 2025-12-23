@@ -16,7 +16,14 @@ export default function Appbar() {
 
   return (
     <div className="flex justify-between items-center p-4 border-b border-black">
-      <div>Logo</div>
+      <div
+      className="cursor-pointer"
+        onClick={() => {
+          router.push(session.status === "authenticated" ? "/dashboard" : "/");
+        }}
+      >
+        Logo
+      </div>
       {session.status === "authenticated" ? (
         <div>
           <Button variant={"destructive"} onClick={handleSignout}>

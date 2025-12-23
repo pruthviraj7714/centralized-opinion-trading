@@ -4,12 +4,18 @@ import {
   getMarketsController,
   getMarketTrades,
 } from "../controlleres/market.controllers";
+import { requireAuth, requireUser } from "../middlewares/user.middleware";
 
 const marketRouter = Router();
 
-marketRouter.get("/", getMarketsController);
+marketRouter.get("/", requireAuth, requireUser, getMarketsController);
 
-marketRouter.get("/:marketId", getMarketByIdController);
+marketRouter.get(
+  "/:marketId",
+  requireAuth,
+  requireUser,
+  getMarketByIdController
+);
 
 //TODO
 // marketRouter.get(
@@ -34,6 +40,11 @@ marketRouter.get("/:marketId", getMarketByIdController);
 //   }
 // );
 
-marketRouter.get("/:marketId/trades", getMarketTrades);
+marketRouter.get(
+  "/:marketId/trades",
+  requireAuth,
+  requireUser,
+  getMarketTrades
+);
 
 export default marketRouter;

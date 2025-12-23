@@ -31,7 +31,7 @@ model Market {
   id              String       @id @default(uuid())
   opinion         String
   description     String
-  status          MarketStatus
+  status          MarketStatus      @default(OPEN)
   expiryTime      DateTime
   resolvedOutcome Outcome?
   userId          String

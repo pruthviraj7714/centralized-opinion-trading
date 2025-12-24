@@ -1,6 +1,7 @@
 import { prisma } from "@repo/db";
 import { CreateMarketSchema } from "@repo/shared";
 import type { Request, Response } from "express";
+import { marketQueue } from "@repo/queues";
 
 const createMarketController = async (req: Request, res: Response) => {
   try {
@@ -26,6 +27,19 @@ const createMarketController = async (req: Request, res: Response) => {
         userId,
       },
     });
+
+    const delay = new Date(expiryTime).getTime() - Date.now();
+
+    await marketQueue.add(
+      "close-market-on-expiry",
+      {
+        marketId: market.id,
+      },
+      {
+        delay,
+        jobId: market.id,
+      }
+    );
 
     res.status(201).json({
       message: "Market Successfully Created",

@@ -20,6 +20,7 @@ model User {
   password  String
   balance   Int        @default(1000000)
   role      Role
+  trades    Trade[]
   position  Position[]
   markets   Market[]
   createdAt DateTime   @default(now())
@@ -34,24 +35,15 @@ model Market {
   expiryTime      DateTime
   resolvedOutcome Outcome?
 
-  b         Int //liquidity parameter
-  qYes      Int
-  qNo       Int
-  positions Position[]
-  userId    String
-  user      User       @relation(fields: [userId], references: [id])
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-}
-
-model AmmTrade {
-  id        String   @id @default(uuid())
-  userId    String
-  marketId  String
-  outcome   Outcome
-  shares    Int
-  cost      Int
-  createdAt DateTime @default(now())
+  feePercent Float      @default(0.3)
+  yesPool    Int
+  noPool     Int
+  positions  Position[]
+  trades     Trade[]
+  userId     String
+  user       User       @relation(fields: [userId], references: [id])
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 }
 
 model Position {
@@ -63,12 +55,29 @@ model Position {
 
   yesShares Int @default(0)
   noShares  Int @default(0)
-  totalCost Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([userId, marketId])
+}
+
+model Trade {
+  id       String @id @default(uuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+  marketId String
+  market   Market @relation(fields: [marketId], references: [id])
+
+  side      Outcome
+  amountIn  Int //amount user paid
+  amountOut Int //tokens recieved
+  price     Int //execution price
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([marketId])
 }
 
 enum Role {

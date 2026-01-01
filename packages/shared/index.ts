@@ -19,7 +19,10 @@ export const SignInSchema = z.object({
 const decimalSchema = z
   .union([
     z.instanceof(Decimal),
-    z.string().min(1).transform((v) => new Decimal(v)),
+    z
+      .string()
+      .min(1)
+      .transform((v) => new Decimal(v)),
   ])
   .refine((v) => v.isFinite(), {
     message: "Invalid decimal value",
@@ -40,4 +43,10 @@ export const CreateMarketSchema = z.object({
   }),
   initialLiquidity: decimalSchema,
   feePercent: decimalSchema.optional().nullable(),
+});
+
+export const PlaceTradeSchema = z.object({
+  side: z.enum(["YES", "NO"], { error: "Side should be valid Value" }),
+  action: z.enum(["BUY", "SELL"], { error: "Action should be valid Value" }),
+  amount: decimalSchema,
 });

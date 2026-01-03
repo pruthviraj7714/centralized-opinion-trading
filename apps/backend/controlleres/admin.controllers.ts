@@ -281,7 +281,9 @@ const resolveOutcomeController = async (req: Request, res: Response) => {
     });
 
     res.status(200).json({
-      message: "Market is successfully resolved with given outcome",
+      message: "Market resolved successfully",
+      marketId: market.id,
+      resolvedOutcome: outcome,
     });
   } catch (error) {
     res.status(500).json({

@@ -51,8 +51,18 @@ const getMarketByIdController = async (req: Request, res: Response) => {
       return;
     }
 
+    const yesProbability = market.yesPool.div(
+      market.yesPool.plus(market.noPool)
+    );
+
+    const noProbability = new Decimal(1).minus(yesProbability);
+
     res.status(200).json({
-      data: market,
+      ...market,
+      probability: {
+        yes: yesProbability,
+        no: noProbability,
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -180,10 +190,49 @@ const placeTradeController = async (req: Request, res: Response) => {
           newYesPool = market.yesPool.plus(amount);
           newNoPool = k.div(newYesPool);
           delta = new Decimal(market.noPool).minus(newNoPool);
+
+          await tx.position.upsert({
+            where: {
+              userId_marketId: {
+                userId,
+                marketId,
+              },
+            },
+            create: {
+              userId,
+              marketId,
+              yesShares: side === "YES" ? delta : new Decimal(0),
+              noShares: new Decimal(0),
+            },
+            update: {
+              yesShares: {
+                increment: delta,
+              },
+            },
+          });
         } else {
           newNoPool = market.noPool.plus(amount);
           newYesPool = k.div(newNoPool);
           delta = new Decimal(market.yesPool).minus(newYesPool);
+          await tx.position.upsert({
+            where: {
+              userId_marketId: {
+                userId,
+                marketId,
+              },
+            },
+            create: {
+              userId,
+              marketId,
+              yesShares: new Decimal(0),
+              noShares: delta,
+            },
+            update: {
+              noShares: {
+                increment: delta,
+              },
+            },
+          });
         }
 
         await tx.user.update({
@@ -193,29 +242,6 @@ const placeTradeController = async (req: Request, res: Response) => {
           data: {
             balance: {
               decrement: amount,
-            },
-          },
-        });
-
-        await tx.position.upsert({
-          where: {
-            userId_marketId: {
-              userId,
-              marketId,
-            },
-          },
-          create: {
-            userId,
-            marketId,
-            yesShares: side === "YES" ? delta : new Decimal(0),
-            noShares: side === "NO" ? delta : new Decimal(0),
-          },
-          update: {
-            yesShares: {
-              increment: delta,
-            },
-            noShares: {
-              increment: delta,
             },
           },
         });
@@ -270,6 +296,7 @@ const placeTradeController = async (req: Request, res: Response) => {
           amountIn: amount,
           side,
           marketId,
+          action,
           userId,
           amountOut: delta,
           price: amount.div(delta),
@@ -286,7 +313,7 @@ const placeTradeController = async (req: Request, res: Response) => {
         },
       });
 
-      const userData = await prisma.user.findFirst({
+      const userData = await tx.user.findFirst({
         where: {
           id: userId,
         },

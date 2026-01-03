@@ -10,6 +10,6 @@ adminRouter.get("/markets", requireAuth, requireAdmin, fetchAdminMarketsControll
 
 adminRouter.get("/markets/:marketId/positions-and-trades", requireAuth, requireAdmin, fetchMarketPositionsAndTradesController);
 
-adminRouter.post("/markets/:marketId/resolve-outcome", requireAuth, requireAdmin, resolveOutcomeController);
+adminRouter.post("/markets/:marketId/resolve", requireAuth, requireAdmin, resolveOutcomeController);
 
 export default adminRouter;

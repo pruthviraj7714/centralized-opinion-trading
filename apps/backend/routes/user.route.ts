@@ -16,4 +16,7 @@ userRouter.get(
   fetchUserPositionAndTradesController
 );
 
+
+//TODO:POST /api/markets/:marketId/claim
+
 export default userRouter;

@@ -36,6 +36,7 @@ interface ITrade {
   userId: string;
   marketId: string;
   side: "YES" | "NO";
+  action : "BUY" | "SELL";
   amountIn: string;
   amountOut: string;
   price: string;
@@ -110,7 +111,7 @@ export default function AdminMarketPageComponent({
 
     try {
       const res = await axios.post(
-        `${BACKEND_URL}/admin/markets/${marketId}/resolve-outcome`,
+        `${BACKEND_URL}/admin/markets/${marketId}/resolve`,
         {
           outcome : selectedOutcome,
         },

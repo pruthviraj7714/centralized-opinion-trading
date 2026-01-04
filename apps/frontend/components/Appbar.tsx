@@ -15,14 +15,15 @@ export default function Appbar() {
   };
 
   return (
-    <div className="flex justify-between items-center p-4 border-b border-black">
+    <div className="flex justify-between bg-zinc-600 items-center p-4 border-b border-black">
       <div
-      className="cursor-pointer"
+      className="cursor-pointer font-bold"
         onClick={() => {
           router.push(session.status === "authenticated" ? "/dashboard" : "/");
         }}
       >
-        Logo
+        Opinion
+        <span className="ml-1 text-white text-xl">X</span>
       </div>
       {session.status === "authenticated" ? (
         <div>

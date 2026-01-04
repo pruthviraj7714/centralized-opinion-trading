@@ -22,47 +22,69 @@ interface Props {
 
 export default function ProbabilityChart({ data }: Props) {
   return (
-    <div className="w-full h-[350px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" />
+    <div className="w-full rounded-lg bg-zinc-900 p-4">
+      <h2 className="mb-4 text-lg font-semibold text-white">
+        Probability Chart
+      </h2>
 
-          <XAxis
-            dataKey="timestamp"
-            tickFormatter={(value) =>
-              new Date(value).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            }
-          />
+      <div className="h-[300px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={data}
+            margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" />
 
-          <YAxis allowDecimals={false} />
+            <XAxis
+              dataKey="timestamp"
+              stroke="#a1a1aa"
+              tick={{ fill: "#a1a1aa", fontSize: 12 }}
+              tickFormatter={(value) =>
+                new Date(value).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              }
+            />
 
-          <Tooltip
-            labelFormatter={(label) =>
-              new Date(label).toLocaleString()
-            }
-          />
-          <Line
-            type="monotone"
-            dataKey="yes"
-            stroke="#16a34a"
-            strokeWidth={2}
-            dot={false}
-            name="YES"
-          />
+            <YAxis
+              domain={[0, 100]}
+              tick={{ fill: "#a1a1aa", fontSize: 12 }}
+              stroke="#a1a1aa"
+            />
 
-          <Line
-            type="monotone"
-            dataKey="no"
-            stroke="#dc2626"
-            strokeWidth={2}
-            dot={false}
-            name="NO"
-          />
-        </LineChart>
-      </ResponsiveContainer>
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#18181b",
+                border: "1px solid #3f3f46",
+                borderRadius: 6,
+                color: "#fff",
+              }}
+              labelFormatter={(label) =>
+                new Date(label).toLocaleString()
+              }
+            />
+
+            <Line
+              type="monotone"
+              dataKey="yes"
+              stroke="#22c55e"
+              strokeWidth={2}
+              dot={false}
+              name="YES"
+            />
+
+            <Line
+              type="monotone"
+              dataKey="no"
+              stroke="#ef4444"
+              strokeWidth={2}
+              dot={false}
+              name="NO"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }

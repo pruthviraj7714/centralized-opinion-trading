@@ -375,7 +375,7 @@ const placeTradeController = async (req: Request, res: Response) => {
   }
 };
 
-export const fetchProbabilityOverTimeChartDataController = async (
+const fetchProbabilityOverTimeChartDataController = async (
   req: Request,
   res: Response
 ) => {
@@ -436,9 +436,42 @@ export const fetchProbabilityOverTimeChartDataController = async (
   }
 };
 
+const fetchParticipationChartDataController = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { marketId } = req.params;
+
+    const yesTraders = await prisma.position.count({
+      where: {
+        marketId,
+        yesShares: { gt: 0 },
+      },
+    });
+
+    const noTraders = await prisma.position.count({
+      where: {
+        marketId,
+        noShares: { gt: 0 },
+      },
+    });
+
+    res.status(200).json({
+      yesTraders,
+      noTraders,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+
 export {
   getMarketsController,
   getMarketByIdController,
   getMarketTrades,
   placeTradeController,
+  fetchProbabilityOverTimeChartDataController,
+  fetchParticipationChartDataController
 };

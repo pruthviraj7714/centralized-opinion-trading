@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/table";
 import { Loader2 } from "lucide-react";
 import ProbabilityChart from "./ProbabilityChart";
+import YesNoDonutChart from "./ParticipationChart";
+import { TradingCard } from "./TradingCard";
 
 interface IMarket {
   opinion: string;
@@ -76,6 +78,11 @@ type YesNoBucket = {
   no: number;
 };
 
+type ParticipationResponse = {
+  yesTraders: number;
+  noTraders: number;
+};
+
 export default function MarketPageComponent({
   marketId,
 }: {
@@ -94,8 +101,15 @@ export default function MarketPageComponent({
   const [trades, setTrades] = useState<ITrade[]>([]);
   const [balance, setBalance] = useState<Decimal>(new Decimal(0));
   const [marketTrades, setMarketTrades] = useState<ITrade[]>([]);
-  const [probabilityChartData, setProbabilityChartData] = useState<YesNoBucket[]>([]);
-  const [chartInterval, setChartInterval] = useState('5m');
+  const [probabilityChartData, setProbabilityChartData] = useState<
+    YesNoBucket[]
+  >([]);
+  const [participationChartData, setParticipationChartData] =
+    useState<ParticipationResponse>({
+      yesTraders: 0,
+      noTraders: 0,
+    });
+  const [chartInterval, setChartInterval] = useState("5m");
 
   const fetchUserBalance = async () => {
     if (!data || !data.accessToken) return;
@@ -235,12 +249,30 @@ export default function MarketPageComponent({
         }
       );
       setProbabilityChartData(res.data.points);
-    } catch (error : any) {
+    } catch (error: any) {
       toast.error(error?.response?.data?.message || error?.message, {
         position: "top-center",
       });
     }
-  }
+  };
+
+  const fetchParticipationChartData = async () => {
+    try {
+      const res = await axios.get<ParticipationResponse>(
+        `${BACKEND_URL}/markets/${marketId}/charts/participation`,
+        {
+          headers: {
+            Authorization: `Bearer ${data?.accessToken}`,
+          },
+        }
+      );
+      setParticipationChartData(res.data);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || error?.message, {
+        position: "top-center",
+      });
+    }
+  };
 
   useEffect(() => {
     if (marketId && status === "authenticated") {
@@ -248,6 +280,7 @@ export default function MarketPageComponent({
       fetchUserPositionAndTrades();
       fetchUserBalance();
       fetchProbabilityChartData();
+      fetchParticipationChartData();
     }
   }, [marketId, status]);
 
@@ -274,184 +307,155 @@ export default function MarketPageComponent({
   const expiryDate = new Date(marketData.expiryTime);
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-6">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <div className="bg-white rounded-xl shadow p-6 space-y-3">
-          <h1 className="text-2xl font-semibold">{marketData.opinion}</h1>
-          <p className="text-gray-600">{marketData.description}</p>
-          <span>{marketData.noOfTraders} traders trading in this market</span>
+    <div className="min-h-screen bg-linear-to-br from-zinc-950 via-zinc-900 to-zinc-950 px-4 py-8">
+    <div className="mx-auto max-w-7xl space-y-6">
+      <div className="space-y-2">
+        <h1 className="text-4xl font-bold text-white">Market Trading</h1>
+        <p className="text-zinc-400">Trade on prediction markets with real-time probability insights</p>
+      </div>
 
-          <div className="flex flex-wrap gap-4 text-sm text-gray-500">
-            <span>
-              Expiry:{" "}
+      <div className="rounded-2xl border border-zinc-700 bg-zinc-800/50 backdrop-blur p-6 space-y-4">
+        <div className="space-y-2">
+          <h2 className="text-2xl font-semibold text-white">{marketData.opinion}</h2>
+          <p className="text-zinc-300">{marketData.description}</p>
+        </div>
+
+        <div className="flex flex-wrap gap-6 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-zinc-400">Active Traders:</span>
+            <span className="font-semibold text-white">{marketData.noOfTraders.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-zinc-400">Expires:</span>
+            <span className="font-semibold text-white">
               {new Intl.DateTimeFormat("en-US", {
                 dateStyle: "medium",
-                timeStyle: "short",
               }).format(expiryDate)}
             </span>
-            <span>Yes Pool: {marketData.yesPool}</span>
-            <span>No Pool: {marketData.noPool}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-zinc-400">Pool:</span>
+            <span className="font-semibold text-white">
+              YES: {marketData.yesPool} | NO: {marketData.noPool}
+            </span>
           </div>
         </div>
+      </div>
 
-        <div className="bg-white rounded-xl shadow p-6">
-          <h2 className="font-medium mb-2">Market Probability</h2>
-          <div className="h-48 flex items-center justify-center text-gray-400">
-            <ProbabilityChart data={probabilityChartData}  />
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="rounded-2xl border border-zinc-700 bg-zinc-800/50 backdrop-blur p-6">
+            <ProbabilityChart data={probabilityChartData} />
         </div>
 
-        <div className="bg-white rounded-xl shadow p-6 space-y-2">
-          <h2 className="font-medium">Liquidity Distribution</h2>
-          <div className="flex h-4 rounded overflow-hidden">
-            <div
-              className="bg-green-500"
-              style={{ width: `${marketData.probability.yes}%` }}
-            />
-            <div
-              className="bg-red-500"
-              style={{ width: `${marketData.probability.no}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-sm text-gray-600">
-            <span>YES</span>
-            <span>NO</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 bg-white rounded-xl shadow p-6 space-y-5">
-            <div className="flex rounded-lg overflow-hidden border">
-              {(["BUY", "SELL"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setCurrentTab(tab)}
-                  className={`flex-1 py-2 font-medium ${
-                    currentTab === tab ? "bg-black text-white" : "bg-white"
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex rounded-lg overflow-hidden border">
-              {(["YES", "NO"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setCurrentSharesTab(tab)}
-                  className={`flex-1 py-2 font-medium ${
-                    currentSharesTab === tab
-                      ? tab === "YES"
-                        ? "bg-green-600 text-white"
-                        : "bg-red-600 text-white"
-                      : "bg-white"
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex justify-between items-center text-sm text-gray-600">
-                <span>Available Balance</span>
-                <span className="font-medium text-gray-900">
-                  ${new Decimal(balance).toFixed(2)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-medium">
-                  Amount to {currentTab} {currentSharesTab}
-                </label>
-
-                <button
-                  onClick={handleMax}
-                  className="text-xs cursor-pointer text-white font-semibold bg-black px-4 py-2 hover:bg-black/80 rounded-2xl"
-                >
-                  Max
-                </button>
-              </div>
-              <Input
-                type="number"
-                min={0}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="Enter amount"
+        <div className="rounded-2xl border border-zinc-700 bg-zinc-800/50 backdrop-blur p-6 space-y-4">
+          <h3 className="text-lg font-semibold text-white">Liquidity Distribution</h3>
+          <div className="space-y-3">
+            <div className="flex h-8 rounded-lg overflow-hidden bg-zinc-900/50 border border-zinc-700">
+              <div
+                className="bg-emerald-500/80 transition-all duration-300"
+                style={{ width: `${marketData.probability.yes}%` }}
               />
-              <p className="text-sm text-gray-500">
-                You’ll receive ≈ <b>{amountToRecieve.toString()}</b>
-              </p>
+              <div
+                className="bg-red-500/80 transition-all duration-300"
+                style={{ width: `${marketData.probability.no}%` }}
+              />
             </div>
-
-            <Button
-              className="w-full"
-              disabled={!amount || Number(amount) <= 0}
-              onClick={handlePlaceTrade}
-            >
-              {currentTab} {currentSharesTab}
-            </Button>
-          </div>
-
-          <div className="bg-white rounded-xl shadow p-6 space-y-2">
-            <h2 className="font-medium">Your Position</h2>
-
-            <div className="text-sm text-gray-600">
-              <p>
-                YES Shares: <b>{position?.yesShares ?? 0}</b>
-              </p>
-              <p>
-                NO Shares: <b>{position?.noShares ?? 0}</b>
-              </p>
+            <div className="flex justify-between text-sm font-medium">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                <span className="text-white">YES {Number(marketData.probability.yes).toFixed(2)}%</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-red-500" />
+                <span className="text-white">NO {Number(marketData.probability.no).toFixed(2)}%</span>
+              </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="bg-white rounded-xl shadow p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <TradingCard
+          currentTab={currentTab}
+          setCurrentTab={setCurrentTab}
+          currentSharesTab={currentSharesTab}
+          setCurrentSharesTab={setCurrentSharesTab}
+          amount={amount}
+          setAmount={setAmount}
+          balance={balance.toString()}
+          amountToRecieve={amountToRecieve}
+          onMax={handleMax}
+          onTrade={handlePlaceTrade}
+        />
+
+        <div className="rounded-2xl border border-zinc-700 bg-zinc-800/50 backdrop-blur p-6 space-y-4">
+          <h3 className="text-lg font-semibold text-white">Your Position</h3>
+          <div className="space-y-3">
+            <div className="p-3 rounded-lg bg-zinc-900/50 border border-zinc-700">
+              <p className="text-sm text-zinc-400 mb-1">YES Shares</p>
+              <p className="text-2xl font-bold text-emerald-400">{position?.yesShares ?? 0}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-zinc-900/50 border border-zinc-700">
+              <p className="text-sm text-zinc-400 mb-1">NO Shares</p>
+              <p className="text-2xl font-bold text-red-400">{position?.noShares ?? 0}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-zinc-700 bg-zinc-800/50 backdrop-blur p-6 overflow-hidden">
+        <h3 className="text-lg font-semibold text-white mb-4">Your Trades</h3>
+        <div className="overflow-x-auto">
           <Table>
-            <TableCaption>Your Trades</TableCaption>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-[100px]">Action</TableHead>
-                <TableHead>Side</TableHead>
-                <TableHead>Amount In</TableHead>
-                <TableHead>Amount Out</TableHead>
-                <TableHead>Created At</TableHead>
+              <TableRow className="border-zinc-700 hover:bg-zinc-700/30">
+                <TableHead className="text-zinc-300">Action</TableHead>
+                <TableHead className="text-zinc-300">Side</TableHead>
+                <TableHead className="text-zinc-300">Amount In</TableHead>
+                <TableHead className="text-zinc-300">Amount Out</TableHead>
+                <TableHead className="text-zinc-300">Created At</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {trades &&
-                trades.length > 0 &&
+              {trades && trades.length > 0 ? (
                 trades.map((trade) => (
-                  <TableRow key={trade.id}>
+                  <TableRow key={trade.id} className="border-zinc-700 hover:bg-zinc-700/30">
+                    <TableCell className="font-medium text-white">{trade.action}</TableCell>
                     <TableCell className="font-medium">
-                      {trade.action}
+                      <span className={trade.side === "YES" ? "text-emerald-400" : "text-red-400"}>{trade.side}</span>
                     </TableCell>
-                    <TableCell className="font-medium">{trade.side}</TableCell>
-                    <TableCell className="font-medium">
-                      {trade.amountIn}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {trade.amountOut}
-                    </TableCell>
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium text-white">{trade.amountIn}</TableCell>
+                    <TableCell className="font-medium text-white">{trade.amountOut}</TableCell>
+                    <TableCell className="font-medium text-zinc-300">
                       {new Intl.DateTimeFormat("en-US", {
                         dateStyle: "medium",
                         timeStyle: "short",
                       }).format(new Date(trade.createdAt))}
                     </TableCell>
                   </TableRow>
-                ))}
+                ))
+              ) : (
+                <TableRow className="border-zinc-700">
+                  <TableCell colSpan={5} className="text-center py-8">
+                    <p className="text-zinc-400">No trades yet</p>
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>
-        <div className="bg-white rounded-xl shadow p-6">
-          <h2 className="font-medium mb-2">Price History</h2>
-          <div className="h-56 flex items-center justify-center text-gray-400">
-            Line Graph
-          </div>
+      </div>
+
+      <div className="rounded-2xl border border-zinc-700 bg-zinc-800/50 backdrop-blur p-6">
+        <h3 className="text-lg font-semibold text-white mb-4">Trader Distribution</h3>
+        <div className="flex items-center justify-center h-80 rounded-lg bg-zinc-900/50">
+          <YesNoDonutChart
+            yesTraders={participationChartData.yesTraders}
+            noTraders={participationChartData.noTraders}
+          />
         </div>
       </div>
     </div>
+  </div>
   );
 }

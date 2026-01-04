@@ -59,7 +59,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-linear-to-br from-zinc-950 via-zinc-900 to-zinc-950 flex flex-col">
       <nav className="border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -72,10 +72,10 @@ export default function LoginPage() {
               </span>
             </Link>
             <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground hidden sm:inline">
+              <span className="text-sm text-muted-white hidden sm:inline">
                 {"Don't have an account?"}
               </span>
-              <Button variant="ghost" asChild>
+              <Button variant="outline" asChild>
                 <Link href="/register">Sign Up</Link>
               </Button>
             </div>

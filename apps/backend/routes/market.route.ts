@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  fetchParticipationChartDataController,
   fetchProbabilityOverTimeChartDataController,
   getMarketByIdController,
   getMarketsController,
@@ -38,6 +39,13 @@ marketRouter.get(
   requireAuth,
   requireUser,
   fetchProbabilityOverTimeChartDataController
+)
+
+marketRouter.get(
+  "/:marketId/charts/participation",
+  requireAuth,
+  requireUser,
+  fetchParticipationChartDataController
 )
 
 

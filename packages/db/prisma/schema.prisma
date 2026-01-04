@@ -18,7 +18,7 @@ model User {
   username       String     @unique
   email          String
   password       String
-  balance        Decimal    @default(1000000) @db.Decimal(18, 6)
+  balance        Decimal    @default(10000) @db.Decimal(18, 6)
   role           Role
   trades         Trade[]
   position       Position[]

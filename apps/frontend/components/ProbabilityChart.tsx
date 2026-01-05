@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+import { Button } from "./ui/button";
 
 type YesNoBucket = {
   timestamp: string;
@@ -18,14 +19,35 @@ type YesNoBucket = {
 
 interface Props {
   data: YesNoBucket[];
+  setChartInterval: (interval: string) => void;
 }
 
-export default function ProbabilityChart({ data }: Props) {
+export default function ProbabilityChart({ data, setChartInterval }: Props) {
   return (
     <div className="w-full rounded-lg bg-zinc-900 p-4">
       <h2 className="mb-4 text-lg font-semibold text-white">
         Probability Chart
       </h2>
+      <div className="flex gap-1.5 items-center my-4">
+        <Button
+          className="cursor-pointer bg-zinc-600 hover:bg-zinc-700"
+          onClick={() => setChartInterval("5m")}
+        >
+          5m
+        </Button>
+        <Button
+          className="cursor-pointer bg-zinc-600 hover:bg-zinc-700"
+          onClick={() => setChartInterval("10m")}
+        >
+          10m
+        </Button>
+        <Button
+          className="cursor-pointer bg-zinc-600 hover:bg-zinc-700"
+          onClick={() => setChartInterval("1h")}
+        >
+          1h
+        </Button>
+      </div>
 
       <div className="h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
@@ -60,9 +82,7 @@ export default function ProbabilityChart({ data }: Props) {
                 borderRadius: 6,
                 color: "#fff",
               }}
-              labelFormatter={(label) =>
-                new Date(label).toLocaleString()
-              }
+              labelFormatter={(label) => new Date(label).toLocaleString()}
             />
 
             <Line

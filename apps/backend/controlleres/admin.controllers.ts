@@ -60,12 +60,9 @@ const createMarketController = async (req: Request, res: Response) => {
       });
       return;
     }
-    const platformFeeAmount = initialLiquidity.mul(feePercent).div(100);
 
-    const finalLiquidity = initialLiquidity.minus(platformFeeAmount);
-
-    const yesPool = finalLiquidity.mul(50).div(100);
-    const noPool = finalLiquidity.mul(50).div(100);
+    const yesPool = initialLiquidity.mul(50).div(100);
+    const noPool = initialLiquidity.mul(50).div(100);
 
     const market = await prisma.$transaction(async (tx) => {
       const market = await tx.market.create({
@@ -75,14 +72,8 @@ const createMarketController = async (req: Request, res: Response) => {
           opinion,
           userId,
           yesPool,
+          feePercent,
           noPool,
-        },
-      });
-
-      await tx.platformFee.create({
-        data: {
-          marketId: market.id,
-          amount: platformFeeAmount,
         },
       });
 
@@ -261,23 +252,14 @@ const resolveOutcomeController = async (req: Request, res: Response) => {
 
     const { outcome } = data;
 
-    await prisma.$transaction(async (tx) => {
-      await tx.market.update({
-        where: {
-          id: marketId,
-        },
-        data: {
-          status: "RESOLVED",
-          resolvedOutcome: outcome,
-        },
-      });
-
-      //TODO: Logic of payout
-      // const positions = await tx.position.findMany({
-      //   where : {
-      //     marketId,
-      //   }
-      // });
+    await prisma.market.update({
+      where: {
+        id: marketId,
+      },
+      data: {
+        status: "RESOLVED",
+        resolvedOutcome: outcome,
+      },
     });
 
     res.status(200).json({

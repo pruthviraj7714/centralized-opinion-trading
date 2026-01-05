@@ -27,9 +27,6 @@ const decimalSchema = z
   .refine((v) => v.isFinite(), {
     message: "Invalid decimal value",
   })
-  .refine((v) => v.dp() <= 2, {
-    message: "Too many decimal places (max 2)",
-  });
 
 export const CreateMarketSchema = z.object({
   opinion: z

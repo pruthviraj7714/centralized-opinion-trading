@@ -3,8 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import Footer from "@/components/Footer";
-import Appbar from "@/components/Appbar";
-import AuthProvider from "@/components/AuthProvider";
+import Providers from "@/components/Providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,7 +27,6 @@ export const metadata: Metadata = {
     "prediction market",
     "event trading",
     "yes no trading",
-    "orderbook trading",
     "centralized exchange",
     "trading platform",
   ],
@@ -44,10 +42,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>
+        <Providers>
           {children}
           <Footer />
-        </AuthProvider>
+        </Providers>
         <Toaster />
       </body>
     </html>

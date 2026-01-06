@@ -19,80 +19,20 @@ import { Loader2 } from "lucide-react";
 import ProbabilityChart from "./ProbabilityChart";
 import YesNoDonutChart from "./ParticipationChart";
 import { TradingCard } from "./TradingCard";
-
-interface IMarket {
-  opinion: string;
-  description: string;
-  expiryTime: string;
-  yesPool: string;
-  noPool: string;
-  adminId: string;
-  probability: {
-    yes: string;
-    no: string;
-  };
-  noOfTraders: number;
-  trades: ITrade[];
-  status: "OPEN" | "CLOSED" | "RESOLVED";
-}
-
-type FetchMarketResponse = IMarket;
-
-interface IPosition {
-  id: string;
-  createdAt: Date;
-  marketId: string;
-  noShares: string;
-  updatedAt: Date;
-  userId: string;
-  yesShares: string;
-}
-
-interface ITrade {
-  id: string;
-  userId: string;
-  marketId: string;
-  side: "YES" | "NO";
-  action: "BUY" | "SELL";
-  amountIn: string;
-  amountOut: string;
-  price: string;
-  createdAt: Date;
-}
-
-interface FetchUserPositionResponse {
-  position: IPosition;
-}
-
-interface FetchUserBalanceResponse {
-  balance: Decimal;
-}
-
-type YesNoBucket = {
-  timestamp: string;
-  yes: number;
-  no: number;
-};
-
-type ParticipationResponse = {
-  yesTraders: number;
-  noTraders: number;
-};
-
-interface Eligibility {
-  participated: boolean;
-  payoutStatus: "NOT_ELIGIBLE" | "ELIGIBLE" | "CLAIMED";
-  payoutAmount: string;
-}
-
-interface TradesResponse {
-  trades: ITrade[];
-}
-
-type FetchMarketTradesResponse = TradesResponse;
-type fetchMyTradesResponse = TradesResponse;
-
-type EligibilityResponse = Eligibility;
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import {
+  getUserBalance,
+  getUserPosition,
+  getUserTrades,
+} from "@/lib/api/user.api";
+import {
+  checkPayoutEligibility,
+  getMarketInfo,
+  getMarketTrades,
+  getParticipationChartData,
+  getProbabilityChartData,
+} from "@/lib/api/market.api";
+import { ITrade } from "@/types/market";
 
 export default function MarketPageComponent({
   marketId,
@@ -100,96 +40,94 @@ export default function MarketPageComponent({
   marketId: string;
 }) {
   const { data, status } = useSession();
+  const isReady = status === "authenticated";
 
-  const [marketData, setMarketData] = useState<IMarket | null>(null);
   const [currentTab, setCurrentTab] = useState<"BUY" | "SELL">("BUY");
   const [currentSharesTab, setCurrentSharesTab] = useState<"YES" | "NO">("YES");
   const [amount, setAmount] = useState<string>("");
   const [amountToRecieve, setAmountToRecieve] = useState<Decimal>(
     new Decimal(0)
   );
-  const [position, setPosition] = useState<IPosition | null>(null);
-  const [marketTrades, setMarketTrades] = useState<ITrade[]>([]);
-  const [myTrades, setMyTrades] = useState<ITrade[]>([]);
-  const [balance, setBalance] = useState<Decimal>(new Decimal(0));
-  const [probabilityChartData, setProbabilityChartData] = useState<
-    YesNoBucket[]
-  >([]);
-  const [participationChartData, setParticipationChartData] =
-    useState<ParticipationResponse>({
-      yesTraders: 0,
-      noTraders: 0,
-    });
   const [chartInterval, setChartInterval] = useState("5m");
-  const [eligibility, setEligibility] = useState<Eligibility | null>(null);
-  const [checking, setChecking] = useState(false);
   const [currentTradesTab, setCurrentTradesTab] = useState<
-    "MyTrades" | "Trades"
+    "UserTrades" | "Trades"
   >("Trades");
 
-  const fetchUserBalance = async () => {
-    if (!data || !data.accessToken) return;
-    try {
-      const res = await axios.get<FetchUserBalanceResponse>(
-        `${BACKEND_URL}/user/balance`,
-        {
-          headers: {
-            Authorization: `Bearer ${data.accessToken}`,
-          },
-        }
-      );
+  const {
+    data: marketData,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["marketInfo", marketId],
+    queryFn: () => getMarketInfo(marketId, data?.accessToken),
+    enabled: isReady,
+  });
+  const { data: position, isLoading: positionLoading } = useQuery({
+    queryKey: ["position"],
+    queryFn: () => getUserPosition(marketId, data?.accessToken),
+    enabled: isReady,
+  });
+  const { data: balance, isLoading: balanceLoading } = useQuery({
+    queryKey: ["balance"],
+    queryFn: () => getUserBalance(data?.accessToken),
+    enabled: isReady,
+  });
+  const {
+    data: marketTrades = [],
+    isLoading: marketTradesLoading,
+    error: marketTradesError,
+  } = useQuery({
+    queryKey: ["marketTrades", marketId],
+    queryFn: () => getMarketTrades(marketId, data?.accessToken),
+    enabled: isReady && currentTradesTab === "Trades",
+  });
+  const {
+    data: userTrades = [],
+    isLoading: userTradesLoading,
+    error: userTradesError,
+  } = useQuery({
+    queryKey: ["userTrades", marketId],
+    queryFn: () => getUserTrades(marketId, data?.accessToken),
+    enabled: isReady && currentTradesTab === "UserTrades",
+  });
+  const {
+    data: probabilityChartData,
+    isLoading: probabilityChartDataLoading,
+    error: probabilityChartDataError,
+  } = useQuery({
+    queryKey: ["probabilityChartData", marketId, chartInterval],
+    queryFn: () =>
+      getProbabilityChartData(marketId, chartInterval, data?.accessToken),
+    enabled: isReady,
+  });
+  const {
+    data: participationChartData,
+    isLoading: participationChartDataLoading,
+    error: participationChartDataError,
+  } = useQuery({
+    queryKey: ["participationChartData", marketId],
+    queryFn: () => getParticipationChartData(marketId, data?.accessToken),
+    enabled: isReady,
+  });
 
-      setBalance(res.data.balance);
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || error?.message);
-    }
-  };
+  const accessToken = data?.accessToken;
+  const isResolved = marketData?.status === "RESOLVED";
 
-  const fetchMarketInfo = async () => {
-    try {
-      const res = await axios.get<FetchMarketResponse>(
-        `${BACKEND_URL}/markets/${marketId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${data?.accessToken}`,
-          },
-        }
-      );
+  const {
+    data: eligibility,
+    isLoading: checking,
+    error: eligibilityError,
+  } = useQuery({
+    queryKey: ["eligibility", marketId],
+    queryFn: () => checkPayoutEligibility(marketId, accessToken!),
+    enabled: status === "authenticated" && !!accessToken && isResolved,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
+  });
 
-      setMarketData(res.data);
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || error?.message);
-    }
-  };
-
-  const fetchMarketTrades = async () => {
-    try {
-      const res = await axios.get<FetchMarketTradesResponse>(
-        `${BACKEND_URL}/markets/${marketId}/trades`
-      );
-
-      setMarketTrades(res.data.trades);
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || error?.message);
-    }
-  };
-
-  const fetchMyTrades = async () => {
-    try {
-      const res = await axios.get<fetchMyTradesResponse>(
-        `${BACKEND_URL}/markets/${marketId}/trades/me`,
-        {
-          headers: {
-            Authorization: `Bearer ${data?.accessToken}`,
-          },
-        }
-      );
-
-      setMyTrades(res.data.trades);
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || error?.message);
-    }
-  };
+  const queryClient = useQueryClient();
 
   const handlePlaceTrade = async () => {
     try {
@@ -209,11 +147,18 @@ export default function MarketPageComponent({
       toast.success(res.data.message, { position: "top-center" });
 
       const newTrade = res.data.trade;
+      queryClient.setQueryData<ITrade[]>(
+        ["marketTrades", marketId],
+        (old = []) => [newTrade, ...old]
+      );
 
-      setMyTrades((prev) => [...prev, newTrade]);
-      setMarketTrades((prev) => [...prev, newTrade]);
-      fetchMarketInfo();
-      fetchUserBalance();
+      queryClient.setQueryData<ITrade[]>(
+        ["userTrades", marketId],
+        (old = []) => [newTrade, ...old]
+      );
+      queryClient.invalidateQueries({ queryKey: ["marketInfo", marketId] });
+      queryClient.invalidateQueries({ queryKey: ["position", marketId] });
+      queryClient.invalidateQueries({ queryKey: ["balance"] });
     } catch (error: any) {
       toast.error(error?.response?.data?.message || error?.message, {
         position: "top-center",
@@ -253,27 +198,8 @@ export default function MarketPageComponent({
     setAmountToRecieve(amountToBeRecieved || new Decimal(0));
   };
 
-  const fetchUserPosition = async () => {
-    try {
-      const res = await axios.get<FetchUserPositionResponse>(
-        `${BACKEND_URL}/user/${marketId}/position`,
-        {
-          headers: {
-            Authorization: `Bearer ${data?.accessToken}`,
-          },
-        }
-      );
-
-      setPosition(res.data.position);
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || error?.message, {
-        position: "top-center",
-      });
-    }
-  };
-
   const handleMax = () => {
-    if (!position) return;
+    if (!position || !balance) return;
 
     if (currentTab === "BUY") {
       setAmount(balance.toString());
@@ -283,64 +209,6 @@ export default function MarketPageComponent({
       } else {
         setAmount((position.noShares || 0).toString());
       }
-    }
-  };
-
-  const fetchProbabilityChartData = async () => {
-    try {
-      const res = await axios.get(
-        `${BACKEND_URL}/markets/${marketId}/charts/probability?interval=${chartInterval}`,
-        {
-          headers: {
-            Authorization: `Bearer ${data?.accessToken}`,
-          },
-        }
-      );
-      setProbabilityChartData(res.data.points);
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || error?.message, {
-        position: "top-center",
-      });
-    }
-  };
-
-  const fetchParticipationChartData = async () => {
-    try {
-      const res = await axios.get<ParticipationResponse>(
-        `${BACKEND_URL}/markets/${marketId}/charts/participation`,
-        {
-          headers: {
-            Authorization: `Bearer ${data?.accessToken}`,
-          },
-        }
-      );
-      setParticipationChartData(res.data);
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || error?.message, {
-        position: "top-center",
-      });
-    }
-  };
-
-  const checkPayoutEligibility = async () => {
-    setChecking(true);
-    try {
-      const res = await axios.get<EligibilityResponse>(
-        `${BACKEND_URL}/markets/${marketId}/eligibility`,
-        {
-          headers: {
-            Authorization: `Bearer ${data?.accessToken}`,
-          },
-        }
-      );
-
-      setEligibility(res.data);
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || error?.message, {
-        position: "top-center",
-      });
-    } finally {
-      setChecking(false);
     }
   };
 
@@ -365,21 +233,6 @@ export default function MarketPageComponent({
   };
 
   useEffect(() => {
-    if (marketId && status === "authenticated") {
-      fetchMarketInfo();
-      fetchUserPosition();
-      fetchUserBalance();
-    }
-  }, [marketId, status]);
-
-  useEffect(() => {
-    if (marketId && status === "authenticated") {
-      fetchProbabilityChartData();
-      fetchParticipationChartData();
-    }
-  }, [marketId, status, chartInterval]);
-
-  useEffect(() => {
     if (!amount || amount.length === 0) return;
 
     let timeout = setTimeout(() => {
@@ -391,31 +244,24 @@ export default function MarketPageComponent({
     };
   }, [amount, currentSharesTab, currentTab, marketData]);
 
-  useEffect(() => {
-    if (
-      marketId &&
-      status === "authenticated" &&
-      marketData &&
-      marketData.status === "RESOLVED"
-    ) {
-      checkPayoutEligibility();
-    }
-  }, [marketId, status, marketData]);
-
-  useEffect(() => {
-    if (!marketId || status !== "authenticated") return;
-    if (currentTradesTab === "Trades" && marketTrades.length === 0) {
-      fetchMarketTrades();
-    }
-    if (currentTradesTab === "MyTrades" && myTrades.length === 0) {
-      fetchMyTrades();
-    }
-  }, [marketId, status, currentTradesTab]);
-
-  if (!marketData) {
+  if (isLoading || !isReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="animate-spin w-10 h-10" />
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-zinc-950">
+        <Loader2 className="animate-spin w-10 h-10 text-zinc-300" />
+        <p className="text-zinc-400 text-sm">Loading market data…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-zinc-950">
+        <p className="text-red-400 text-lg font-semibold">
+          Failed to load market
+        </p>
+        <p className="text-zinc-400 text-sm">
+          Please refresh or try again later.
+        </p>
       </div>
     );
   }
@@ -423,251 +269,310 @@ export default function MarketPageComponent({
   const expiryDate = new Date(marketData.expiryTime);
 
   const displayedTrades =
-    currentTradesTab === "MyTrades" ? myTrades : marketTrades;
+    currentTradesTab === "UserTrades" ? userTrades : marketTrades;
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-zinc-950 via-zinc-900 to-zinc-950 px-4 py-8">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-4xl font-bold text-white">Market Trading</h1>
-          <p className="text-zinc-400">
-            Trade on prediction markets with real-time probability insights
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-zinc-700 bg-zinc-800/50 backdrop-blur p-6 space-y-4">
-          <div className="space-y-2">
-            <h2 className="text-2xl font-semibold text-white">
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        {/* Market Overview Card */}
+        <div className="mb-8 rounded-lg border border-border bg-card">
+          <div className="mb-6 space-y-2">
+            <h2 className="text-2xl font-semibold text-card-foreground">
               {marketData.opinion}
             </h2>
-            <p className="text-zinc-300">{marketData.description}</p>
+            <p className="text-base text-muted-foreground">
+              {marketData.description}
+            </p>
           </div>
 
-          <div className="flex flex-wrap gap-6 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-zinc-400">Active Traders:</span>
-              <span className="font-semibold text-white">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-muted-foreground">
+                Active Traders
+              </span>
+              <span className="mt-1 text-2xl font-semibold text-foreground">
                 {marketData.noOfTraders.toLocaleString()}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-zinc-400">Expires:</span>
-              <span className="font-semibold text-white">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-muted-foreground">
+                Expires
+              </span>
+              <span className="mt-1 text-2xl font-semibold text-foreground">
                 {new Intl.DateTimeFormat("en-US", {
                   dateStyle: "medium",
+                  timeStyle : "medium"
                 }).format(expiryDate)}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-zinc-400">Pool:</span>
-              <span className="font-semibold text-white">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-muted-foreground">
+                Pool
+              </span>
+              <span className="mt-1 text-sm font-semibold text-foreground">
                 YES: {marketData.yesPool} | NO: {marketData.noPool}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="rounded-2xl border border-zinc-700 bg-zinc-800/50 backdrop-blur p-6">
+        {/* Probability Chart */}
+        <div className="mb-8 rounded-lg border border-border bg-card ">
+          {probabilityChartDataLoading ? (
+            <div className="flex h-64 items-center justify-center">
+              <Loader2 className="animate-spin text-muted-foreground" />
+            </div>
+          ) : probabilityChartDataError ? (
+            <div className="flex h-64 items-center justify-center">
+              <p className="text-sm text-destructive">
+                Failed to load probability chart
+              </p>
+            </div>
+          ) : (
             <ProbabilityChart
               data={probabilityChartData}
               setChartInterval={setChartInterval}
             />
-          </div>
-
-          <div className="rounded-2xl border border-zinc-700 bg-zinc-800/50 backdrop-blur p-6 space-y-4">
-            <h3 className="text-lg font-semibold text-white">
-              Liquidity Distribution
-            </h3>
-            <div className="space-y-3">
-              <div className="flex h-8 rounded-lg overflow-hidden bg-zinc-900/50 border border-zinc-700">
-                <div
-                  className="bg-emerald-500/80 transition-all duration-300"
-                  style={{ width: `${marketData.probability.yes}%` }}
-                />
-                <div
-                  className="bg-red-500/80 transition-all duration-300"
-                  style={{ width: `${marketData.probability.no}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-sm font-medium">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                  <span className="text-white">
-                    YES {Number(marketData.probability.yes).toFixed(2)}%
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500" />
-                  <span className="text-white">
-                    NO {Number(marketData.probability.no).toFixed(2)}%
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {marketData.status === "OPEN" ? (
-            <TradingCard
-              currentTab={currentTab}
-              setCurrentTab={setCurrentTab}
-              currentSharesTab={currentSharesTab}
-              setCurrentSharesTab={setCurrentSharesTab}
-              amount={amount}
-              setAmount={setAmount}
-              balance={balance.toString()}
-              amountToRecieve={amountToRecieve}
-              onMax={handleMax}
-              onTrade={handlePlaceTrade}
-            />
-          ) : marketData.status === "CLOSED" ? (
-            <div className="bg-zinc-600 rounded-xl shadow p-6 text-center space-y-3">
-              <div className="text-2xl">⏳</div>
-
-              <h3 className="font-semibol text-white text-lg">Market Closed</h3>
-
-              <p className="text-sm text-white">
-                Trading has ended. The admin will resolve the outcome soon.
-              </p>
-
-              <p className="text-xs text-white">
-                You’ll be able to claim your payout after resolution.
-              </p>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 space-y-4">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">✅</span>
-                <h3 className="text-lg font-semibold text-zinc-100">
-                  Market Resolved
-                </h3>
-              </div>
-
-              {checking ? (
-                <p className="text-sm text-gray-500">
-                  Checking payout eligibility...
-                </p>
-              ) : eligibility && eligibility.participated ? (
-                eligibility.payoutStatus === "CLAIMED" ? (
-                  <>
-                    <p className="text-sm text-zinc-400">
-                      Your payout for this market has already been successfully
-                      claimed.
-                    </p>
-
-                    <Button
-                      className="w-full bg-zinc-700 text-zinc-300 cursor-not-allowed"
-                      disabled
-                    >
-                      Payout Claimed
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm text-zinc-300">
-                      You are eligible to claim your payout based on your final
-                      market position.
-                    </p>
-
-                    <p className="text-sm text-zinc-300 mb-4">
-                      Amount to be claimed: ~
-                      <span className="text-green-400">
-                        ${eligibility.payoutAmount}
-                      </span>
-                    </p>
-
-                    <Button
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                      onClick={handleClaimPayout}
-                    >
-                      Claim Payout
-                    </Button>
-                  </>
-                )
-              ) : (
-                <p className="text-sm text-red-400">
-                  You are not eligible to claim a payout because you did not
-                  participate in this market.
-                </p>
-              )}
-            </div>
           )}
+        </div>
 
-          <div className="rounded-2xl border border-zinc-700 bg-zinc-800/50 backdrop-blur p-6 space-y-4">
-            <h3 className="text-lg font-semibold text-white">Your Position</h3>
-            <div className="space-y-3">
-              <div className="p-3 rounded-lg bg-zinc-900/50 border border-zinc-700">
-                <p className="text-sm text-zinc-400 mb-1">YES Shares</p>
-                <p className="text-2xl font-bold text-emerald-400">
-                  {position?.yesShares ?? 0}
+        {/* Main Content Grid */}
+        <div className="mb-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
+          {/* Trading Section */}
+          <div className="lg:col-span-2">
+            {marketData.status === "OPEN" ? (
+              <TradingCard
+                currentTab={currentTab}
+                setCurrentTab={setCurrentTab}
+                currentSharesTab={currentSharesTab}
+                setCurrentSharesTab={setCurrentSharesTab}
+                amount={amount}
+                setAmount={setAmount}
+                balance={balance ? balance.toString() : "0"}
+                amountToRecieve={amountToRecieve.toString()}
+                onMax={handleMax}
+                onTrade={handlePlaceTrade}
+              />
+            ) : marketData.status === "CLOSED" ? (
+              <div className="rounded-lg border border-border bg-card  text-center ">
+                <div className="mb-4 text-4xl">⏳</div>
+                <h3 className="mb-2 text-lg font-semibold text-card-foreground">
+                  Market Closed
+                </h3>
+                <p className="mb-3 text-sm text-muted-foreground">
+                  Trading has ended. The admin will resolve the outcome soon.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  You'll be able to claim your payout after resolution.
                 </p>
               </div>
-              <div className="p-3 rounded-lg bg-zinc-900/50 border border-zinc-700">
-                <p className="text-sm text-zinc-400 mb-1">NO Shares</p>
-                <p className="text-2xl font-bold text-red-400">
-                  {position?.noShares ?? 0}
-                </p>
+            ) : (
+              <div className="space-y-4 rounded-lg border border-border bg-card  ">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">✅</span>
+                  <h3 className="text-lg font-semibold text-card-foreground">
+                    Market Resolved
+                  </h3>
+                </div>
+
+                {checking ? (
+                  <p className="text-sm text-muted-foreground">
+                    Checking payout eligibility...
+                  </p>
+                ) : eligibilityError ? (
+                  <p className="text-sm text-destructive">
+                    Failed to check payout eligibility
+                  </p>
+                ) : eligibility && eligibility.participated ? (
+                  eligibility.payoutStatus === "CLAIMED" ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        Your payout for this market has already been
+                        successfully claimed.
+                      </p>
+                      <Button disabled className="w-full">
+                        Payout Claimed
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        You are eligible to claim your payout based on your
+                        final market position.
+                      </p>
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Amount to be claimed:{" "}
+                          <span className="font-semibold text-foreground">
+                            ${eligibility.payoutAmount}
+                          </span>
+                        </p>
+                        <Button onClick={handleClaimPayout} className="w-full">
+                          Claim Payout
+                        </Button>
+                      </div>
+                    </>
+                  )
+                ) : (
+                  <p className="text-sm text-destructive">
+                    You are not eligible to claim a payout because you did not
+                    participate in this market.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Position Card */}
+          <div className="rounded-lg border border-border bg-card  ">
+            <h3 className="mb-4 text-lg font-semibold text-card-foreground">
+              Your Position
+            </h3>
+
+            {positionLoading || balanceLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm">Loading your position…</span>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="rounded-lg border border-border bg-background p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    YES Shares
+                  </p>
+                  <p className="mt-2 text-3xl font-bold text-chart-1">
+                    {position?.yesShares ?? 0}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border bg-background p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    NO Shares
+                  </p>
+                  <p className="mt-2 text-3xl font-bold text-chart-2">
+                    {position?.noShares ?? 0}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Liquidity Distribution */}
+        <div className="mb-8 rounded-lg border border-border bg-card">
+          <h3 className="mb-6 text-lg font-semibold text-card-foreground">
+            Liquidity Distribution
+          </h3>
+          <div className="space-y-4">
+            <div className="flex h-2 overflow-hidden rounded-full bg-secondary">
+              <div
+                className="bg-chart-1 transition-all duration-300"
+                style={{ width: `${marketData.probability.yes}%` }}
+              />
+              <div
+                className="bg-chart-2 transition-all duration-300"
+                style={{ width: `${marketData.probability.no}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-sm font-medium">
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full bg-chart-1" />
+                <span className="text-foreground">
+                  YES {Number(marketData.probability.yes).toFixed(2)}%
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full bg-chart-2" />
+                <span className="text-foreground">
+                  NO {Number(marketData.probability.no).toFixed(2)}%
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-zinc-700 bg-zinc-800/50 backdrop-blur p-6 overflow-hidden">
-          <div className="flex justify-evenly items-center">
-            <div
-              onClick={() => setCurrentTradesTab("Trades")}
-              className={`text-lg font-semibold text-white border px-6 hover:bg-black/50 cursor-pointer mb-4`}
-            >
-              Trades
-            </div>
-            <div
-              onClick={() => setCurrentTradesTab("MyTrades")}
-              className={`text-lg font-semibold text-white border px-6 hover:bg-black/50 cursor-pointer mb-4`}
-            >
-              Your Trades
+        {/* Trades Section */}
+        <div className="mb-8 rounded-lg border border-border bg-card overflow-hidden">
+          <div className="border-b border-border py-4">
+            <div className="flex gap-4">
+              {["Trades", "UserTrades"].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setCurrentTradesTab(tab as any)}
+                  className={`pb-2 text-sm font-semibold transition-colors ${
+                    currentTradesTab === tab
+                      ? "border-b-2 border-primary text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {tab === "Trades" ? "Market Trades" : "Your Trades"}
+                </button>
+              ))}
             </div>
           </div>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="border-zinc-700 hover:bg-zinc-700/30">
-                  <TableHead className="text-zinc-300">Action</TableHead>
-                  <TableHead className="text-zinc-300">Side</TableHead>
-                  <TableHead className="text-zinc-300">Amount In</TableHead>
-                  <TableHead className="text-zinc-300">Amount Out</TableHead>
-                  <TableHead className="text-zinc-300">Created At</TableHead>
+                <TableRow className="border-border hover:bg-transparent">
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Action
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Side
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Amount In
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Amount Out
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Created At
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {displayedTrades && displayedTrades.length > 0 ? (
-                  displayedTrades.map((trade) => (
+                {marketTradesLoading || userTradesLoading ? (
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableCell colSpan={5} className="py-8 text-center">
+                      <Loader2 className="mx-auto inline-block animate-spin text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                ) : marketTradesError || userTradesError ? (
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableCell
+                      colSpan={5}
+                      className="py-8 text-center text-sm text-destructive"
+                    >
+                      Failed to load trades
+                    </TableCell>
+                  </TableRow>
+                ) : displayedTrades && displayedTrades.length > 0 ? (
+                  displayedTrades.map((trade: ITrade) => (
                     <TableRow
                       key={trade.id}
-                      className="border-zinc-700 hover:bg-zinc-700/30"
+                      className="border-border hover:bg-secondary/30"
                     >
-                      <TableCell className="font-medium text-white">
+                      <TableCell className="font-medium text-foreground">
                         {trade.action}
                       </TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell>
                         <span
                           className={
                             trade.side === "YES"
-                              ? "text-emerald-400"
-                              : "text-red-400"
+                              ? "font-medium text-chart-1"
+                              : "font-medium text-chart-2"
                           }
                         >
                           {trade.side}
                         </span>
                       </TableCell>
-                      <TableCell className="font-medium text-white">
+                      <TableCell className="font-medium text-foreground">
                         {trade.amountIn}
                       </TableCell>
-                      <TableCell className="font-medium text-white">
+                      <TableCell className="font-medium text-foreground">
                         {trade.amountOut}
                       </TableCell>
-                      <TableCell className="font-medium text-zinc-300">
+                      <TableCell className="text-sm text-muted-foreground">
                         {new Intl.DateTimeFormat("en-US", {
                           dateStyle: "medium",
                           timeStyle: "short",
@@ -676,9 +581,12 @@ export default function MarketPageComponent({
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow className="border-zinc-700">
-                    <TableCell colSpan={5} className="text-center py-8">
-                      <p className="text-zinc-400">No trades yet</p>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableCell
+                      colSpan={5}
+                      className="py-8 text-center text-sm text-muted-foreground"
+                    >
+                      No trades yet
                     </TableCell>
                   </TableRow>
                 )}
@@ -687,15 +595,22 @@ export default function MarketPageComponent({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-zinc-700 bg-zinc-800/50 backdrop-blur p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">
+        {/* Trader Distribution */}
+        <div className="rounded-lg border border-border bg-card">
+          <h3 className="mb-6 text-lg font-semibold text-card-foreground">
             Trader Distribution
           </h3>
-          <div className="flex items-center justify-center h-80 rounded-lg bg-zinc-900/50">
-            <YesNoDonutChart
-              yesTraders={participationChartData.yesTraders}
-              noTraders={participationChartData.noTraders}
-            />
+          <div className="flex h-80 items-center justify-center rounded-lg bg-secondary">
+            {participationChartDataLoading ? (
+              <Loader2 className="animate-spin text-muted-foreground" />
+            ) : participationChartDataError ? (
+              <p className="text-sm text-destructive">Failed to load data</p>
+            ) : (
+              <YesNoDonutChart
+                yesTraders={participationChartData?.yesTraders || 0}
+                noTraders={participationChartData?.noTraders || 0}
+              />
+            )}
           </div>
         </div>
       </div>

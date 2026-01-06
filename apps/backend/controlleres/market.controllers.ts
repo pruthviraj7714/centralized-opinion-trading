@@ -39,17 +39,13 @@ const getMarketByIdController = async (req: Request, res: Response) => {
   try {
     const marketId = req.params.marketId;
 
-    const [market, tradersCount, trades] = await Promise.all([
+    const [market, tradersCount] = await Promise.all([
       await prisma.market.findFirst({
         where: {
           id: marketId,
         },
       }),
       await prisma.position.count({ where: { marketId } }),
-      await prisma.trade.findMany({
-        where: { marketId },
-        orderBy: { createdAt: "desc" },
-      }),
     ]);
 
     if (!market) {
@@ -73,7 +69,6 @@ const getMarketByIdController = async (req: Request, res: Response) => {
         yes: yesProbability.mul(100).toNumber(),
         no: noProbability.mul(100).toNumber(),
       },
-      trades,
       noOfTraders: tradersCount,
     });
   } catch (error) {

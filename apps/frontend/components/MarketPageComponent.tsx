@@ -5,7 +5,6 @@ import axios from "axios";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Button } from "./ui/button";
 import Decimal from "decimal.js";
 import {
   Table,
@@ -15,7 +14,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2 } from "lucide-react";
 import ProbabilityChart from "./ProbabilityChart";
 import YesNoDonutChart from "./ParticipationChart";
 import { TradingCard } from "./TradingCard";
@@ -33,6 +31,23 @@ import {
   getProbabilityChartData,
 } from "@/lib/api/market.api";
 import { ITrade } from "@/types/market";
+import {
+  TrendingUp,
+  Users,
+  Calendar,
+  DollarSign,
+  Activity,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  Loader2,
+  ArrowUpRight,
+  ArrowDownRight,
+  Zap,
+  PieChart,
+  Trophy,
+  BarChart3,
+} from "lucide-react";
 
 export default function MarketPageComponent({
   marketId,
@@ -49,9 +64,7 @@ export default function MarketPageComponent({
     new Decimal(0)
   );
   const [chartInterval, setChartInterval] = useState("5m");
-  const [currentTradesTab, setCurrentTradesTab] = useState<
-    "UserTrades" | "Trades"
-  >("Trades");
+  const [currentTradesTab, setCurrentTradesTab] = useState<string>("Trades");
 
   const {
     data: marketData,
@@ -292,6 +305,24 @@ export default function MarketPageComponent({
     }
   };
 
+  const showLiquidity = (liq: Decimal): string => {
+    if (!liq || liq.lte(0)) return "0.00";
+
+    if (liq.lt(1_000)) {
+      return liq.toFixed(2);
+    }
+
+    if (liq.lt(1_000_000)) {
+      return liq.div(1_000).toFixed(1) + "K";
+    }
+
+    if (liq.lt(1_000_000_000)) {
+      return liq.div(1_000_000).toFixed(2) + "M";
+    }
+
+    return liq.div(1_000_000_000).toFixed(2) + "B";
+  };
+
   useEffect(() => {
     if (!amount || amount.length === 0) return;
 
@@ -332,69 +363,153 @@ export default function MarketPageComponent({
     currentTradesTab === "UserTrades" ? userTrades : marketTrades;
 
   return (
-    <div className="min-h-screen bg-zinc-950">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="mb-8 rounded-lg bg-zinc-900 px-8 py-10">
-          <div className="mb-6 space-y-2">
-            <h2 className="text-2xl font-semibold text-zinc-100">
-              {marketData.opinion}
-            </h2>
-            <p className="text-base text-zinc-500">{marketData.description}</p>
-          </div>
+    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden shadow-xl shadow-zinc-950/50">
+          <div className="relative p-6 pb-8">
+            <div className="absolute inset-0 bg-linear-to-br from-purple-500/5 via-transparent to-pink-500/5" />
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-zinc-500">
-                Active Traders
-              </span>
-              <span className="mt-1 text-xl font-semibold text-zinc-100">
-                {marketData.noOfTraders.toLocaleString()}
-              </span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-zinc-500">
-                Expires on
-              </span>
-              <span className="mt-1 text-xl font-semibold text-zinc-100">
-                {new Intl.DateTimeFormat("en-US", {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                }).format(expiryDate)}
-              </span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-zinc-500">
-                Pool Liquidity
-              </span>
-              <div className="mt-2 flex items-center gap-3">
-                <div className="flex items-center gap-1.5">
-                  <div className="h-2 w-2 rounded-full bg-chart-1" />
-                  <span className="text-sm font-semibold text-chart-1">
-                    {marketData.yesPool}
+            <div className="relative space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h1 className="text-3xl font-bold text-zinc-100 mb-3">
+                    {marketData.opinion}
+                  </h1>
+                  <p className="text-zinc-400 leading-relaxed">
+                    {marketData.description}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold ${
+                      marketData.status === "OPEN"
+                        ? "bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30"
+                        : marketData.status === "CLOSED"
+                          ? "bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/30"
+                          : "bg-sky-500/20 text-sky-400 ring-1 ring-sky-500/30"
+                    }`}
+                  >
+                    {marketData.status === "OPEN" && (
+                      <Activity className="h-3.5 w-3.5" />
+                    )}
+                    {marketData.status === "CLOSED" && (
+                      <Clock className="h-3.5 w-3.5" />
+                    )}
+                    {marketData.status === "RESOLVED" && (
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    )}
+                    {marketData.status}
                   </span>
                 </div>
-                <span className="text-xs text-zinc-500">•</span>
-                <div className="flex items-center gap-1.5">
-                  <div className="h-2 w-2 rounded-full bg-chart-2" />
-                  <span className="text-sm font-semibold text-chart-2">
-                    {marketData.noPool}
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-4">
+                <div className="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="h-4 w-4 text-purple-400" />
+                    <span className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
+                      Traders
+                    </span>
+                  </div>
+                  <span className="text-2xl font-bold text-zinc-100">
+                    {marketData.noOfTraders.toLocaleString()}
+                  </span>
+                </div>
+
+                <div className="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calendar className="h-4 w-4 text-purple-400" />
+                    <span className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
+                      Expires
+                    </span>
+                  </div>
+                  <span className="text-sm font-semibold text-zinc-100">
+                    {new Intl.DateTimeFormat("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }).format(expiryDate)}
+                  </span>
+                </div>
+
+                <div className="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <DollarSign className="h-4 w-4 text-purple-400" />
+                    <span className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
+                      Liquidity
+                    </span>
+                  </div>
+                  <span className="text-2xl font-bold text-zinc-100">
+                    ${showLiquidity(new Decimal(marketData.liquidity || 0))}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700/50">
+                <div className="flex items-center gap-2 mb-2">
+                  <BarChart3 className="h-4 w-4 text-purple-400" />
+                  <span className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
+                    Volume
+                  </span>
+                </div>
+                <div className="text-2xl flex items-baseline gap-2 font-bold text-zinc-100">
+                  <span className="text-3xl font-bold text-zinc-100">
+                    ${marketData?.volume || 0}
+                  </span>
+                  <span className="text-sm text-zinc-500">USD</span>
+                </div>
+              </div>
+
+              <div className="bg-zinc-800/50 rounded-lg p-5 border border-zinc-700/50">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-zinc-500">
+                    Avg Trade Size
+                  </span>
+                  <TrendingUp className="h-4 w-4 text-purple-400" />
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold text-zinc-100">
+                    ${Number(marketData.averageTradeSize || 0).toFixed(2)}
+                  </span>
+                  <span className="text-sm text-zinc-500">USD</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-6 pt-2">
+                <div className="flex items-center gap-2">
+                  <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50" />
+                  <span className="text-sm text-zinc-400">YES:</span>
+                  <span className="text-sm font-bold text-emerald-400">
+                    ${marketData.yesPool.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-2.5 w-2.5 rounded-full bg-red-500 shadow-lg shadow-red-500/50" />
+                  <span className="text-sm text-zinc-400">NO:</span>
+                  <span className="text-sm font-bold text-red-400">
+                    ${marketData.noPool.toLocaleString()}
                   </span>
                 </div>
               </div>
             </div>
           </div>
+
+          <div className="h-1 bg-linear-to-r from-purple-600 via-pink-600 to-purple-600" />
         </div>
 
-        <div className="mb-8 rounded-lg border border-zinc-800  bg-zinc-900 px-4 py-2">
+        <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="h-5 w-5 text-purple-400" />
+            <h3 className="text-lg font-bold text-zinc-100">Price History</h3>
+          </div>
           {probabilityChartDataLoading ? (
             <div className="flex h-64 items-center justify-center">
               <Loader2 className="animate-spin text-zinc-500" />
             </div>
           ) : probabilityChartDataError ? (
             <div className="flex h-64 items-center justify-center">
-              <p className="text-sm text-destructive">
-                Failed to load probability chart
-              </p>
+              <p className="text-sm text-red-400">Failed to load chart</p>
             </div>
           ) : (
             <ProbabilityChart
@@ -404,7 +519,7 @@ export default function MarketPageComponent({
           )}
         </div>
 
-        <div className="mb-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
             {marketData.status === "OPEN" ? (
               <TradingCard
@@ -424,233 +539,303 @@ export default function MarketPageComponent({
                 platformFees={marketData.feePercent}
               />
             ) : marketData.status === "CLOSED" ? (
-              <div className="rounded-lg  bg-zinc-900 text-center py-8 ">
-                <div className="mb-4 text-4xl">⏳</div>
-                <h3 className="mb-2 text-lg font-semibold text-zinc-100">
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-8 text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-500/20 mb-4">
+                  <Clock className="h-8 w-8 text-amber-400" />
+                </div>
+                <h3 className="text-xl font-bold text-zinc-100 mb-2">
                   Market Closed
                 </h3>
-                <p className="mb-3 text-sm text-zinc-500">
+                <p className="text-zinc-400 mb-3">
                   Trading has ended. The admin will resolve the outcome soon.
                 </p>
-                <p className="text-xs text-zinc-500">
+                <p className="text-sm text-zinc-500">
                   You'll be able to claim your payout after resolution.
                 </p>
               </div>
             ) : (
-              <div className="space-y-4 rounded-lg   bg-zinc-900  px-4 py-8">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">✅</span>
-                  <h3 className="text-lg font-semibold text-zinc-100">
-                    Market Resolved
-                  </h3>
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+                <div className="bg-linear-to-r from-sky-600/10 to-blue-600/10 p-6 border-b border-zinc-800">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-full bg-sky-500/20 flex items-center justify-center">
+                      <CheckCircle2 className="h-6 w-6 text-sky-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-zinc-100 mb-1">
+                        Market Resolved
+                      </h3>
+                      <p className="text-sm text-zinc-400">
+                        Final outcome:{" "}
+                        <span
+                          className={`font-bold text-lg ${
+                            marketData.resolvedOutcome === "YES"
+                              ? "text-emerald-400"
+                              : "text-red-400"
+                          }`}
+                        >
+                          {marketData.resolvedOutcome}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                {checking ? (
-                  <p className="text-sm text-zinc-500">
-                    Checking payout eligibility...
-                  </p>
-                ) : eligibilityError ? (
-                  <p className="text-sm text-destructive">
-                    Failed to check payout eligibility
-                  </p>
-                ) : eligibility && eligibility.participated ? (
-                  eligibility.payoutStatus === "CLAIMED" ? (
-                    <>
-                      <p className="text-sm text-zinc-500">
-                        Your payout for this market has already been
-                        successfully claimed.
+                <div className="p-6">
+                  {checking ? (
+                    <div className="flex items-center gap-2 text-zinc-400">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span>Checking payout eligibility...</span>
+                    </div>
+                  ) : eligibilityError ? (
+                    <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-4">
+                      <p className="text-sm text-red-400">
+                        Failed to check payout eligibility
                       </p>
-                      <Button disabled className="w-full">
-                        Payout Claimed
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-sm text-zinc-500">
-                        You are eligible to claim your payout based on your
-                        final market position.
-                      </p>
-                      <div className="space-y-3">
-                        <p className="text-sm text-zinc-500">
-                          Amount to be claimed:{" "}
-                          <span className="font-semibold text-zinc-100">
-                            ${eligibility.payoutAmount}
-                          </span>
-                        </p>
-                        <Button onClick={handleClaimPayout} className="w-full">
-                          Claim Payout
-                        </Button>
+                    </div>
+                  ) : eligibility && eligibility.participated ? (
+                    eligibility.payoutStatus === "CLAIMED" ? (
+                      <div className="space-y-4">
+                        <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-4">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                            <p className="text-sm text-emerald-300 font-medium">
+                              Payout Already Claimed
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          disabled
+                          className="w-full py-3 px-6 bg-zinc-800 text-zinc-500 font-semibold rounded-lg cursor-not-allowed"
+                        >
+                          Payout Claimed
+                        </button>
                       </div>
-                    </>
-                  )
-                ) : (
-                  <p className="text-sm text-destructive">
-                    You are not eligible to claim a payout because you did not
-                    participate in this market.
-                  </p>
-                )}
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="rounded-lg bg-purple-500/10 border border-purple-500/20 p-4">
+                          <p className="text-sm text-zinc-300 mb-3">
+                            You are eligible to claim your payout based on your
+                            final position.
+                          </p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-zinc-400">
+                              Amount to claim:
+                            </span>
+                            <span className="text-2xl font-bold text-zinc-100">
+                              ${eligibility.payoutAmount}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleClaimPayout}
+                          className="w-full py-3 px-6 bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-lg transition-all shadow-lg shadow-purple-600/20 hover:shadow-purple-600/30 flex items-center justify-center gap-2"
+                        >
+                          <Trophy className="h-5 w-5" />
+                          Claim Payout
+                        </button>
+                      </div>
+                    )
+                  ) : (
+                    <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-4 text-center">
+                      <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
+                      <p className="text-sm text-red-300">
+                        You are not eligible to claim a payout because you did
+                        not participate in this market.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
 
-          <div className="rounded-lg  bg-zinc-900 px-4 py-2">
-            <h3 className="mb-4 text-lg font-semibold text-zinc-100">
-              Your Position
-            </h3>
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <Zap className="h-5 w-5 text-purple-400" />
+              <h3 className="text-lg font-bold text-zinc-100">Your Position</h3>
+            </div>
 
             {positionLoading || balanceLoading ? (
               <div className="flex items-center gap-2 text-zinc-500">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm">Loading your position…</span>
+                <span className="text-sm">Loading...</span>
               </div>
             ) : (
-              <div className="space-y-3">
-                <div className="rounded-lg   bg-zinc-900 p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+              <div className="space-y-4">
+                <div className="rounded-lg bg-zinc-800/50 border border-zinc-700/50 p-5">
+                  <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-3">
                     YES Shares
                   </p>
-                  <p className="mt-2 text-3xl font-bold text-chart-1">
-                    {position?.yesShares ?? 0}
-                  </p>
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-4xl font-bold text-emerald-400">
+                      {position?.yesShares ?? 0}
+                    </p>
+                    <span className="text-sm text-zinc-500">shares</span>
+                  </div>
                 </div>
-                <div className="rounded-lg   bg-zinc-900 p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                <div className="rounded-lg bg-zinc-800/50 border border-zinc-700/50 p-5">
+                  <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-3">
                     NO Shares
                   </p>
-                  <p className="mt-2 text-3xl font-bold text-chart-2">
-                    {position?.noShares ?? 0}
-                  </p>
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-4xl font-bold text-red-400">
+                      {position?.noShares ?? 0}
+                    </p>
+                    <span className="text-sm text-zinc-500">shares</span>
+                  </div>
                 </div>
               </div>
             )}
           </div>
         </div>
 
-        <div className="mb-8 rounded-lg bg-zinc-900 px-4 py-2">
-          <h3 className="mb-6 text-lg font-semibold text-zinc-100">
+        <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+          <h3 className="text-lg font-bold text-zinc-100 mb-6">
             Liquidity Distribution
           </h3>
           <div className="space-y-4">
-            <div className="flex h-2 overflow-hidden rounded-full bg-secondary">
+            <div className="flex h-3 overflow-hidden rounded-full bg-zinc-800">
               <div
-                className="bg-chart-1 transition-all duration-300"
+                className="bg-linear-to-r from-emerald-500 to-emerald-400 transition-all duration-300"
                 style={{ width: `${marketData.probability.yes}%` }}
               />
               <div
-                className="bg-chart-2 transition-all duration-300"
+                className="bg-linear-to-r from-red-500 to-red-400 transition-all duration-300"
                 style={{ width: `${marketData.probability.no}%` }}
               />
             </div>
-            <div className="flex justify-between text-sm font-medium">
+            <div className="flex justify-between text-sm font-semibold">
               <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-chart-1" />
-                <span className="text-zinc-100">
-                  YES {Number(marketData.probability.yes).toFixed(2)}%
+                <div className="h-3 w-3 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50" />
+                <span className="text-zinc-100">YES</span>
+                <span className="text-emerald-400">
+                  {Number(marketData.probability.yes).toFixed(2)}%
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-chart-2" />
-                <span className="text-zinc-100">
-                  NO {Number(marketData.probability.no).toFixed(2)}%
+                <div className="h-3 w-3 rounded-full bg-red-500 shadow-lg shadow-red-500/50" />
+                <span className="text-zinc-100">NO</span>
+                <span className="text-red-400">
+                  {Number(marketData.probability.no).toFixed(2)}%
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="mb-8 rounded-lg bg-zinc-900 overflow-hidden px-4 py-2">
-          <div className="border-b  py-4">
-            <div className="flex gap-4">
+        <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+          <div className="border-b border-zinc-800 px-6 py-4">
+            <div className="flex gap-6">
               {["Trades", "UserTrades"].map((tab) => (
                 <button
                   key={tab}
-                  onClick={() => setCurrentTradesTab(tab as any)}
-                  className={`pb-2 text-sm font-semibold transition-colors ${
+                  onClick={() => setCurrentTradesTab(tab)}
+                  className={`pb-2 text-sm font-bold transition-colors relative ${
                     currentTradesTab === tab
-                      ? "border-b-2 border-white text-white"
-                      : "text-zinc-500 hover:text-zinc-100"
+                      ? "text-purple-400"
+                      : "text-zinc-500 hover:text-zinc-300"
                   }`}
                 >
                   {tab === "Trades" ? "Market Trades" : "Your Trades"}
+                  {currentTradesTab === tab && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-linear-to-r from-purple-600 to-pink-600" />
+                  )}
                 </button>
               ))}
             </div>
           </div>
+
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="">
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                <TableRow className="border-zinc-800 bg-zinc-800/30">
+                  <TableHead className="text-xs font-bold uppercase tracking-wider text-zinc-400">
                     Action
                   </TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  <TableHead className="text-xs font-bold uppercase tracking-wider text-zinc-400">
                     Side
                   </TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  <TableHead className="text-xs font-bold uppercase tracking-wider text-zinc-400">
                     Amount In
                   </TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  <TableHead className="text-xs font-bold uppercase tracking-wider text-zinc-400">
                     Amount Out
                   </TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    Created At
+                  <TableHead className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                    Time
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {marketTradesLoading || userTradesLoading ? (
-                  <TableRow className=" hover:bg-transparent">
-                    <TableCell colSpan={5} className="py-8 text-center">
+                  <TableRow className="border-zinc-800">
+                    <TableCell colSpan={5} className="py-12 text-center">
                       <Loader2 className="mx-auto inline-block animate-spin text-zinc-500" />
                     </TableCell>
                   </TableRow>
                 ) : marketTradesError || userTradesError ? (
-                  <TableRow className=" hover:bg-transparent">
+                  <TableRow className="border-zinc-800">
                     <TableCell
                       colSpan={5}
-                      className="py-8 text-center text-sm text-destructive"
+                      className="py-12 text-center text-sm text-red-400"
                     >
                       Failed to load trades
                     </TableCell>
                   </TableRow>
                 ) : displayedTrades && displayedTrades.length > 0 ? (
                   displayedTrades.map((trade: ITrade) => (
-                    <TableRow key={trade.id} className=" hover:bg-secondary/30">
-                      <TableCell className="font-medium text-zinc-100">
-                        {trade.action}
+                    <TableRow
+                      key={trade.id}
+                      className="border-zinc-800 hover:bg-zinc-800/30 transition-colors"
+                    >
+                      <TableCell>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold ${
+                            trade.action === "BUY"
+                              ? "bg-blue-500/20 text-blue-400"
+                              : "bg-orange-500/20 text-orange-400"
+                          }`}
+                        >
+                          {trade.action === "BUY" ? (
+                            <ArrowDownRight className="h-3 w-3" />
+                          ) : (
+                            <ArrowUpRight className="h-3 w-3" />
+                          )}
+                          {trade.action}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <span
-                          className={
+                          className={`font-bold ${
                             trade.side === "YES"
-                              ? "font-medium text-chart-1"
-                              : "font-medium text-chart-2"
-                          }
+                              ? "text-emerald-400"
+                              : "text-red-400"
+                          }`}
                         >
                           {trade.side}
                         </span>
                       </TableCell>
-                      <TableCell className="font-medium text-zinc-100">
-                        {trade.amountIn}
+                      <TableCell className="font-semibold text-zinc-100">
+                        ${Number(trade.amountIn).toLocaleString()}
                       </TableCell>
-                      <TableCell className="font-medium text-zinc-100">
-                        {trade.amountOut}
+                      <TableCell className="font-semibold text-zinc-100">
+                        ${Number(trade.amountOut).toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-sm text-zinc-500">
+                      <TableCell className="text-sm text-zinc-400">
                         {new Intl.DateTimeFormat("en-US", {
-                          dateStyle: "medium",
-                          timeStyle: "short",
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
                         }).format(new Date(trade.createdAt))}
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow className=" hover:bg-transparent">
-                    <TableCell
-                      colSpan={5}
-                      className="py-8 text-center text-sm text-zinc-500"
-                    >
-                      No trades yet
+                  <TableRow className="border-zinc-800">
+                    <TableCell colSpan={5} className="py-12 text-center">
+                      <Activity className="h-12 w-12 text-zinc-700 mx-auto mb-3" />
+                      <p className="text-sm text-zinc-500">No trades yet</p>
                     </TableCell>
                   </TableRow>
                 )}
@@ -659,15 +844,18 @@ export default function MarketPageComponent({
           </div>
         </div>
 
-        <div className="rounded-lg  bg-zinc-900 px-4 py-2">
-          <h3 className="mb-6 text-lg font-semibold text-zinc-100">
-            Trader Distribution
-          </h3>
-          <div className="flex h-80 items-center justify-center rounded-lg bg-zinc-800">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <PieChart className="h-5 w-5 text-purple-400" />
+            <h3 className="text-lg font-bold text-zinc-100">
+              Trader Distribution
+            </h3>
+          </div>
+          <div className="flex h-80 items-center justify-center rounded-lg bg-zinc-800/50">
             {participationChartDataLoading ? (
               <Loader2 className="animate-spin text-zinc-500" />
             ) : participationChartDataError ? (
-              <p className="text-sm text-destructive">Failed to load data</p>
+              <p className="text-sm text-red-400">Failed to load data</p>
             ) : (
               <YesNoDonutChart
                 yesTraders={participationChartData?.yesTraders || 0}

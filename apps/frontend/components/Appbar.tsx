@@ -16,12 +16,14 @@ export default function Appbar() {
 
   return (
     <nav className="sticky top-0 z-50 backdrop-blur-xl bg-zinc-900/90 border-b border-zinc-800 shadow-lg shadow-zinc-950/20">
-      <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-full mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div
             className="flex items-center gap-2 cursor-pointer group"
             onClick={() => {
-              router.push(session.status === "authenticated" ? "/dashboard" : "/");
+              router.push(
+                session.status === "authenticated" ? "/dashboard" : "/"
+              );
             }}
           >
             <div className="relative">
@@ -50,7 +52,7 @@ export default function Appbar() {
                   <div className="flex flex-col">
                     <span className="text-xs text-zinc-400">Signed in as</span>
                     <span className="text-sm font-semibold text-zinc-100">
-                      {session.data?.user.username || "User"}
+                      {session.data?.user?.username || "User"}
                     </span>
                   </div>
                 </div>

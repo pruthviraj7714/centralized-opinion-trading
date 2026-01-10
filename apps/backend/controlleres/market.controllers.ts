@@ -565,6 +565,15 @@ const checkEligibilityController = async (req: Request, res: Response) => {
       return;
     }
 
+    if (position.payoutStatus === "CLAIMED") {
+      res.status(200).json({
+        participated: true,
+        payoutStatus: "CLAIMED",
+        payoutAmount: position.payoutAmount,
+      });
+      return;
+    }
+
     const winningShares =
       market.resolvedOutcome === "YES"
         ? position?.yesShares
@@ -575,15 +584,6 @@ const checkEligibilityController = async (req: Request, res: Response) => {
         participated: true,
         payoutStatus: "NOT_ELIGIBLE",
         payoutAmount: "0",
-      });
-      return;
-    }
-
-    if (position.payoutStatus === "CLAIMED") {
-      res.status(200).json({
-        participated: true,
-        payoutStatus: "CLAIMED",
-        payoutAmount: position.payoutAmount,
       });
       return;
     }
@@ -672,6 +672,8 @@ const claimPayoutController = async (req: Request, res: Response) => {
           claimedAt: new Date(),
           payoutAmount,
           payoutStatus: "CLAIMED",
+          yesShares: 0,
+          noShares: 0,
         },
       });
       await tx.user.update({

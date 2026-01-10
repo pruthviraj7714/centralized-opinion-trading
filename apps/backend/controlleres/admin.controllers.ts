@@ -250,13 +250,26 @@ const fetchMarketByIdController = async (req: Request, res: Response) => {
 
     const noProbability = new Decimal(1).minus(yesProbability);
 
+    const liquidity = new Decimal(2).mul(
+      Decimal.sqrt(market.yesPool.mul(market.noPool))
+    );
+
+    const avgTradeSize = await prisma.trade.aggregate({
+      where: { marketId, action: "BUY" },
+      _avg: { amountIn: true },
+      _sum: { amountIn: true },
+    });
+
     res.status(200).json({
       ...market,
       probability: {
         yes: yesProbability.mul(100).toNumber(),
         no: noProbability.mul(100).toNumber(),
       },
+      liquidity,
       noOfTraders: tradersCount,
+      volume: avgTradeSize._sum.amountIn || new Decimal(0),
+      averageTradeSize: avgTradeSize._avg.amountIn || new Decimal(0),
     });
   } catch (error) {
     res.status(500).json({
@@ -345,7 +358,7 @@ const getMarketFeesStatsController = async (req: Request, res: Response) => {
     res.status(200).json({
       marketId: marketId,
       totalFees: fees._sum.amount?.toString() ?? "0.00",
-      tradeCount: fees._count._all,
+      tradeCount: fees._count._all || 0,
     });
   } catch (error) {
     res.status(500).json({

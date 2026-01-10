@@ -80,6 +80,16 @@ export const getMarketInfoForAdmin = async (
   return data;
 };
 
+export const getMarketStats = async (marketId: string, token?: string) => {
+  const { data } = await api.get(`/admin/markets/${marketId}/stats`, {
+    headers : {
+      Authorization : `Bearer ${token}`
+    }
+  });
+
+  return data;
+};
+
 export const getMarketPositionsAndTrades = async (
   marketId: string,
   token?: string

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth, requireUser } from "../middlewares/user.middleware";
 import {
-  fetchUserAuthInfoController,
+  fetchUserAccountOverviewInfoController,
   loginUserController,
   registerUserController,
 } from "../controlleres/auth.controllers";
@@ -12,6 +12,6 @@ authRouter.post("/register", registerUserController);
 
 authRouter.post("/login", loginUserController);
 
-authRouter.get("/me", requireUser, requireAuth, fetchUserAuthInfoController);
+authRouter.get("/me", requireAuth, requireUser, fetchUserAccountOverviewInfoController);
 
 export default authRouter;

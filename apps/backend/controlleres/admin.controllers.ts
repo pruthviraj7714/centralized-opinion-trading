@@ -323,14 +323,36 @@ const resolveOutcomeController = async (req: Request, res: Response) => {
 
     const { outcome } = data;
 
-    await prisma.market.update({
-      where: {
-        id: marketId,
-      },
-      data: {
-        status: "RESOLVED",
-        resolvedOutcome: outcome,
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.market.update({
+        where: {
+          id: marketId,
+        },
+        data: {
+          status: "RESOLVED",
+          resolvedOutcome: outcome,
+        },
+      });
+
+      await tx.position.updateMany({
+        where: {
+          marketId,
+          ...(outcome === "YES"
+            ? {
+                yesShares: {
+                  gt: 0,
+                },
+              }
+            : {
+                noShares: {
+                  gt: 0,
+                },
+              }),
+        },
+        data: {
+          payoutStatus: "UNCLAIMED",
+        },
+      });
     });
 
     res.status(200).json({

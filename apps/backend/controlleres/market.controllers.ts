@@ -94,18 +94,36 @@ const getMarketByIdController = async (req: Request, res: Response) => {
 const getMarketTradesController = async (req: Request, res: Response) => {
   try {
     const marketId = req.params.marketId;
+    const limit = Number(req.query.limit) || 10;
+
+    const rawCursor = req.query.cursor;
+    const cursor =
+      typeof rawCursor === "string" && rawCursor !== "undefined"
+        ? rawCursor
+        : undefined;
 
     const trades = await prisma.trade.findMany({
       where: {
         marketId,
       },
-      orderBy: {
-        createdAt: "desc",
+      take : limit + 1,
+      orderBy : {
+        createdAt : "desc"
       },
+      ...(cursor && {
+        cursor: { id: cursor },
+        skip: 1,
+      }),
     });
 
+    const hasNextPage = trades.length > limit;
+    const paginatedTrades = hasNextPage ? trades.slice(0, limit) : trades;
+
     res.status(200).json({
-      trades: trades || [],
+      trades: paginatedTrades || [],
+      nextCursor: hasNextPage
+      ? paginatedTrades[paginatedTrades.length - 1]?.id
+      : null,
     });
   } catch (error) {
     res.status(500).json({
@@ -118,19 +136,37 @@ const getUserMarketTradesController = async (req: Request, res: Response) => {
   try {
     const marketId = req.params.marketId!;
     const userId = req.user?.id!;
+    const limit = Number(req.query.limit) || 10;
+
+    const rawCursor = req.query.cursor;
+    const cursor =
+      typeof rawCursor === "string" && rawCursor !== "undefined"
+        ? rawCursor
+        : undefined;
 
     const trades = await prisma.trade.findMany({
       where: {
         marketId,
-        userId,
+        userId
       },
-      orderBy: {
-        createdAt: "desc",
+      take : limit + 1,
+      orderBy : {
+        createdAt : "desc"
       },
+      ...(cursor && {
+        cursor: { id: cursor },
+        skip: 1,
+      }),
     });
 
+    const hasNextPage = trades.length > limit;
+    const paginatedTrades = hasNextPage ? trades.slice(0, limit) : trades;
+
     res.status(200).json({
-      trades: trades || [],
+      trades: paginatedTrades || [],
+      nextCursor: hasNextPage
+      ? paginatedTrades[paginatedTrades.length - 1]?.id
+      : null,
     });
   } catch (error) {
     res.status(500).json({

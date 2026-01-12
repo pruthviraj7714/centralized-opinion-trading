@@ -389,6 +389,129 @@ const getMarketFeesStatsController = async (req: Request, res: Response) => {
   }
 };
 
+const getAdminProfileDataController = async (req: Request, res: Response) => {
+  try {
+    const adminId = req.user?.id!;
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const endOfToday = new Date();
+    endOfToday.setHours(0, 0, 0, 0);
+
+    const startOfMonth = new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      1,
+      0,
+      0,
+      0,
+      0
+    );
+
+    const endOfMonth = new Date(
+      new Date().getFullYear(),
+      new Date().getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+      999
+    );
+
+    const {
+      admin,
+      markets,
+      pendingResolutions,
+      thisMonthsRevenue,
+      todaysRevenue,
+      total,
+      totalUsers,
+      volume,
+    } = await prisma.$transaction(async (tx) => {
+      const admin = await tx.user.findUnique({ where: { id: adminId } });
+
+      const totalUsers = await tx.user.count({ where: { role: "USER" } });
+
+      const total = await tx.platformFee.aggregate({
+        _sum: { amount: true },
+      });
+
+      const volume = await tx.trade.aggregate({
+        _sum: { amountIn: true },
+      });
+
+      const markets = await tx.market.findMany({});
+
+      const pendingResolutions = await tx.market.findMany({
+        where: {
+          status: "CLOSED",
+        },
+      });
+
+      const todaysRevenue = await tx.platformFee.aggregate({
+        where: {
+          createdAt: {
+            gte: startOfToday,
+            lte: endOfToday,
+          },
+        },
+        _sum : {amount : true}
+      });
+
+      const thisMonthsRevenue = await tx.platformFee.aggregate({
+        where: {
+          createdAt: {
+            gte: startOfMonth,
+            lte: endOfMonth,
+          },
+        },
+        _sum : {amount : true}
+      });
+      return {
+        admin,
+        pendingResolutions,
+        totalUsers,
+        total,
+        volume,
+        markets,
+        todaysRevenue,
+        thisMonthsRevenue,
+      };
+    });
+
+    if (!admin) {
+      res.status(404).json({ message: "Admin Profile Not Found!" });
+      return;
+    }
+
+    res.status(200).json({
+      admin: {
+        username: admin.username,
+        email: admin.email,
+      },
+      platformStats: {
+        totalRevenue: total._sum.amount || 0,
+        totalUsers,
+        totalVolume: volume._sum.amountIn || 0,
+      },
+      revenueData: {
+        today: todaysRevenue._sum.amount || 0,
+        thisMonth: thisMonthsRevenue._sum.amount || 0,
+        allTime: total._sum.amount || 0,
+      },
+      allMarkets: markets,
+      pendingResolutions: pendingResolutions,
+    });
+  } catch (error) {
+    console.log(error);
+    
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
+};
+
 export {
   createMarketController,
   fetchAdminMarketsController,
@@ -396,4 +519,5 @@ export {
   fetchMarketPositionsAndTradesController,
   resolveOutcomeController,
   getMarketFeesStatsController,
+  getAdminProfileDataController,
 };

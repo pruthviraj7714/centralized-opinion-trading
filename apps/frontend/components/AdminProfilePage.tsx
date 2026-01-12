@@ -40,7 +40,7 @@ interface IMarket {
   status: "OPEN" | "CLOSED" | "RESOLVED";
 }
 
-export default function AdminProfilePage({ authToken }: { authToken: string }) {
+export default function AdminProfilePage({ authToken }: { authToken?: string }) {
   const {
     data: adminData,
     isLoading,

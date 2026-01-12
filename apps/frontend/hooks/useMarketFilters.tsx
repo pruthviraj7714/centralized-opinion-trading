@@ -1,3 +1,4 @@
+import { ITrade } from "@/types/market";
 import { useState, useMemo } from "react";
 
 
@@ -285,10 +286,10 @@ export function sortMarkets(markets : any[], sortBy : string, sortOrder : string
       case "volume":
         // Calculate total volume from trades if available
         const aVolume =
-          a.trades?.reduce((sum, trade) => sum + Number(trade.amountIn), 0) ||
+          a.trades?.reduce((sum : number, trade : ITrade) => sum + Number(trade.amountIn), 0) ||
           0;
         const bVolume =
-          b.trades?.reduce((sum, trade) => sum + Number(trade.amountIn), 0) ||
+          b.trades?.reduce((sum : number, trade : ITrade) => sum + Number(trade.amountIn), 0) ||
           0;
         comparison = aVolume - bVolume;
         break;

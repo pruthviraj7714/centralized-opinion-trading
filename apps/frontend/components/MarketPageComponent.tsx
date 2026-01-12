@@ -585,9 +585,10 @@ export default function MarketPageComponent({
                 onMax={handleMax}
                 onTrade={handlePlaceTrade}
                 platformFees={marketData.feePercent}
+                marketOpinion={marketData.opinion}
               />
             ) : marketData.status === "CLOSED" ? (
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-8 text-center">
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-8 h-full text-center">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-500/20 mb-4">
                   <Clock className="h-8 w-8 text-amber-400" />
                 </div>

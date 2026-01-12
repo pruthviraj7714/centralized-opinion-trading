@@ -18,13 +18,17 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import MarketFilters from "./MarketFilters";
+import { useSearchParams } from "next/navigation";
 
 const AdminDashboard = () => {
   const { data, status } = useSession();
   const isReady = status === "authenticated";
   const [page, setPage] = useState(1);
+  const searchParams = useSearchParams();
 
-  const filters = useMarketFilters();
+  const marketStatus = searchParams.get("status") || "";
+
+  const filters = useMarketFilters(marketStatus);
 
   const {
     data: marketResponse,

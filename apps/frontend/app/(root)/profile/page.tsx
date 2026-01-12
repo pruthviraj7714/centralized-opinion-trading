@@ -1,3 +1,4 @@
+import AdminProfilePage from "@/components/AdminProfilePage";
 import UserProfilePage from "@/components/UserProfilePageComponent";
 import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
@@ -8,6 +9,10 @@ export default async function ProfilePage() {
 
   if (!session || !session.user) {
     redirect("/");
+  }
+
+  if(session.user.role === "ADMIN") {
+    return <AdminProfilePage authToken={session.accessToken} />
   }
 
   return <UserProfilePage authToken={session.accessToken!} />;

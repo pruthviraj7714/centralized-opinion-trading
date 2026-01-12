@@ -3,6 +3,9 @@
 import { Button } from "@/components/ui/button";
 import Decimal from "decimal.js";
 import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { useState } from "react";
+import ConfirmationDialog from "./ConfirmationDialog";
+import { toast } from "sonner";
 
 interface TradingCardProps {
   currentTab: "BUY" | "SELL";
@@ -19,6 +22,7 @@ interface TradingCardProps {
   onMax: () => void;
   onTrade: () => void;
   platformFees: string;
+  marketOpinion: string;
 }
 
 export function TradingCard({
@@ -36,9 +40,41 @@ export function TradingCard({
   onMax,
   onTrade,
   platformFees,
+  marketOpinion = "Will Bitcoin reach $100k by end of 2026?",
 }: TradingCardProps) {
   const isBuy = currentTab === "BUY";
   const isYes = currentSharesTab === "YES";
+
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleConfirmTrade = async () => {
+    setIsProcessing(true);
+    try {
+      await onTrade();
+      setShowConfirmation(false);
+      setAmount("");
+    } catch (error) {
+      toast.error("Trade failed", { position: "top-center" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const tradeDetails = {
+    action: currentTab,
+    side: currentSharesTab,
+    amount: amount || "0.00",
+    fee: calculateFee(),
+    finalAmount: calculateFinal(),
+    receiving: calculateFinalReceivingAmount(),
+    marketOpinion,
+  };
+
+  const handleTradeClick = () => {
+    if (!amount || Number(amount) <= 0) return;
+    setShowConfirmation(true);
+  };
 
   return (
     <div className="rounded-2xl bg-zinc-800 p-6 sm:p-8 border border-zinc-700">
@@ -195,7 +231,7 @@ export function TradingCard({
       </div>
 
       <Button
-        onClick={onTrade}
+        onClick={handleTradeClick}
         disabled={!amount || Number(amount) <= 0}
         className={`w-full py-6 font-semibold text-base text-white rounded-lg transition-all duration-200 ${
           currentTab === "BUY"
@@ -205,6 +241,14 @@ export function TradingCard({
       >
         {currentTab} {currentSharesTab}
       </Button>
+
+      <ConfirmationDialog
+        isOpen={showConfirmation}
+        onClose={() => setShowConfirmation(false)}
+        onConfirm={handleConfirmTrade}
+        tradeDetails={tradeDetails}
+        isProcessing={isProcessing}
+      />
     </div>
   );
 }

@@ -44,7 +44,10 @@ export default function CreateMarketPage() {
     setServerError(null);
 
     try {
-      const res = await axios.post(`${BACKEND_URL}/admin/markets`, formData, {
+      const parsed: CreateMarketOutput =
+      CreateMarketSchema.parse(formData);
+
+      const res = await axios.post(`${BACKEND_URL}/admin/markets`, parsed, {
         headers: {
           Authorization: `Bearer ${data?.accessToken}`,
         },

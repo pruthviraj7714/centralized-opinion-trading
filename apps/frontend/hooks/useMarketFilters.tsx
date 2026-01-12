@@ -1,11 +1,59 @@
-import MarketFilters from "@/components/MarketFilters";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 
-// Hook for managing all filter states
-export function useMarketFilters() {
+
+export interface IMarketFilters {
+  searchInput: string;
+  setSearchInput: (value: string) => void;
+  marketStatus: string | undefined;
+  setMarketStatus: (value: string) => void;
+  sortBy: string;
+  setSortBy: (value: string) => void;
+  sortOrder: string;
+  setSortOrder: (value: string) => void;
+  filterByOutcome: string;
+  setFilterByOutcome: (value: string) => void;
+  minLiquidity: string;
+  setMinLiquidity: (value: string) => void;
+  maxLiquidity: string;
+  setMaxLiquidity: (value: string) => void;
+  dateRange: string;
+  setDateRange: (value: string) => void;
+  maxFeePercent: string;
+  setMaxFeePercent: (value: string) => void;
+  minTraders: string;
+  setMinTraders: (value: string) => void;
+  showMyMarkets: boolean;
+  setShowMyMarkets: (value: boolean) => void;
+  showMyPositions: boolean;
+  setShowMyPositions: (value: boolean) => void;
+  createdBy: string;
+  setCreatedBy: (value: string) => void;
+  onReset: () => void;
+  hasActiveFilters: boolean;
+}
+
+interface IMarket {
+  id: string;
+  opinion: string;
+  description: string;
+  status: "OPEN" | "CLOSED" | "RESOLVED" ;
+  expiryTime: string;
+  resolvedOutcome?: "YES" | "NO" | null;
+  feePercent: number;
+  yesPool: number;
+  noPool: number;
+  userId: string;
+  noOfTraders: number;
+  positions?: Array<{ userId: string }>;
+  trades?: Array<{ amountIn: number }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function useMarketFilters(status? : string) {
   // Search & Basic Filters
   const [searchInput, setSearchInput] = useState("");
-  const [marketStatus, setMarketStatus] = useState(""); // "", "OPEN", "CLOSED", "RESOLVED"
+  const [marketStatus, setMarketStatus] = useState(status); // "", "OPEN", "CLOSED", "RESOLVED"
 
   // Sorting
   const [sortBy, setSortBy] = useState("createdAt"); // "createdAt", "expiryTime", "liquidity", "traders", "volume", "popularity"
@@ -112,7 +160,7 @@ export function useMarketFilters() {
 }
 
 // Function to filter markets based on all criteria
-export function filterMarkets(markets, filters) {
+export function filterMarkets(markets : any[], filters : any) {
   let filtered = [...markets];
 
   // Search filter
@@ -207,7 +255,7 @@ export function filterMarkets(markets, filters) {
 }
 
 // Function to sort markets
-export function sortMarkets(markets, sortBy, sortOrder) {
+export function sortMarkets(markets : any[], sortBy : string, sortOrder : string) {
   const sorted = [...markets];
 
   sorted.sort((a, b) => {
@@ -265,58 +313,10 @@ export function sortMarkets(markets, sortBy, sortOrder) {
 }
 
 // Complete filtering and sorting function
-export function processMarkets(markets, filters) {
+export function processMarkets(markets : any[], filters : any) {
   const filtered = filterMarkets(markets, filters);
   const sorted = sortMarkets(filtered, filters.sortBy, filters.sortOrder);
   return sorted;
 }
 
 
-export interface IMarketFilters {
-  searchInput: string;
-  setSearchInput: (value: string) => void;
-  marketStatus: string;
-  setMarketStatus: (value: string) => void;
-  sortBy: string;
-  setSortBy: (value: string) => void;
-  sortOrder: string;
-  setSortOrder: (value: string) => void;
-  filterByOutcome: string;
-  setFilterByOutcome: (value: string) => void;
-  minLiquidity: string;
-  setMinLiquidity: (value: string) => void;
-  maxLiquidity: string;
-  setMaxLiquidity: (value: string) => void;
-  dateRange: string;
-  setDateRange: (value: string) => void;
-  maxFeePercent: string;
-  setMaxFeePercent: (value: string) => void;
-  minTraders: string;
-  setMinTraders: (value: string) => void;
-  showMyMarkets: boolean;
-  setShowMyMarkets: (value: boolean) => void;
-  showMyPositions: boolean;
-  setShowMyPositions: (value: boolean) => void;
-  createdBy: string;
-  setCreatedBy: (value: string) => void;
-  onReset: () => void;
-  hasActiveFilters: boolean;
-}
-
-export interface Market {
-  id: string;
-  opinion: string;
-  description: string;
-  status: "OPEN" | "CLOSED" | "RESOLVED";
-  expiryTime: string;
-  resolvedOutcome?: "YES" | "NO" | null;
-  feePercent: number;
-  yesPool: number;
-  noPool: number;
-  userId: string;
-  noOfTraders?: number;
-  positions?: Array<{ userId: string }>;
-  trades?: Array<{ amountIn: number }>;
-  createdAt: string;
-  updatedAt: string;
-}

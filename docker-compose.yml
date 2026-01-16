@@ -1,0 +1,17 @@
+services:
+  backend:
+    image: opinionx-backend
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+
+  worker:
+    image: opinionx-worker
+    env_file:
+      - .env
+
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"

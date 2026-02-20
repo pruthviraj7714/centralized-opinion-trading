@@ -1,13 +1,13 @@
 services:
   backend:
-    image: opinionx-backend
+    image: tonytech12/opinionx-backend
     ports:
       - "3000:3000"
     env_file:
       - .env
 
   worker:
-    image: opinionx-worker
+    image: tonytech12/opinionx-worker
     env_file:
       - .env
 

@@ -3,6 +3,7 @@ import { PlaceTradeSchema } from "@repo/shared";
 import type { Request, Response } from "express";
 import { Decimal } from "../../../packages/db/generated/prisma/internal/prismaNamespace";
 import { applyTrade, getIntervalMs } from "../helper";
+import type { Market } from "../../../packages/db/generated/prisma/client";
 
 const getMarketsController = async (req: Request, res: Response) => {
   try {
@@ -64,7 +65,7 @@ const getMarketByIdController = async (req: Request, res: Response) => {
     const noProbability = new Decimal(1).minus(yesProbability);
 
     const liquidity = new Decimal(2).mul(
-      Decimal.sqrt(market.yesPool.mul(market.noPool))
+      Decimal.sqrt(market.yesPool.mul(market.noPool)),
     );
 
     const avgTradeSize = await prisma.trade.aggregate({
@@ -106,9 +107,9 @@ const getMarketTradesController = async (req: Request, res: Response) => {
       where: {
         marketId,
       },
-      take : limit + 1,
-      orderBy : {
-        createdAt : "desc"
+      take: limit + 1,
+      orderBy: {
+        createdAt: "desc",
       },
       ...(cursor && {
         cursor: { id: cursor },
@@ -122,8 +123,8 @@ const getMarketTradesController = async (req: Request, res: Response) => {
     res.status(200).json({
       trades: paginatedTrades || [],
       nextCursor: hasNextPage
-      ? paginatedTrades[paginatedTrades.length - 1]?.id
-      : null,
+        ? paginatedTrades[paginatedTrades.length - 1]?.id
+        : null,
     });
   } catch (error) {
     res.status(500).json({
@@ -147,11 +148,11 @@ const getUserMarketTradesController = async (req: Request, res: Response) => {
     const trades = await prisma.trade.findMany({
       where: {
         marketId,
-        userId
+        userId,
       },
-      take : limit + 1,
-      orderBy : {
-        createdAt : "desc"
+      take: limit + 1,
+      orderBy: {
+        createdAt: "desc",
       },
       ...(cursor && {
         cursor: { id: cursor },
@@ -165,8 +166,8 @@ const getUserMarketTradesController = async (req: Request, res: Response) => {
     res.status(200).json({
       trades: paginatedTrades || [],
       nextCursor: hasNextPage
-      ? paginatedTrades[paginatedTrades.length - 1]?.id
-      : null,
+        ? paginatedTrades[paginatedTrades.length - 1]?.id
+        : null,
     });
   } catch (error) {
     res.status(500).json({
@@ -208,93 +209,66 @@ const placeTradeController = async (req: Request, res: Response) => {
   const userId = req.user?.id!;
 
   try {
-    const market = await prisma.market.findUnique({
-      where: {
-        id: marketId,
-      },
-    });
-
-    if (!market) {
-      res.status(404).json({
-        message: "Market not found",
-      });
-      return;
-    }
-
-    if (market.status === "CLOSED") {
-      res.status(423).json({
-        error: "MARKET_CLOSED",
-        message: "Trading is closed for this market",
-      });
-      return;
-    }
-
-    const user = await prisma.user.findFirst({
-      where: {
-        id: userId,
-      },
-    });
-
-    if (action === "BUY" && user?.balance.lt(amount)) {
-      res.status(400).json({
-        error: "INSUFFICIENT_BALANCE",
-        message: "Not enough balance to execute trade",
-      });
-      return;
-    }
-
-    if (action === "SELL") {
-      const position = await prisma.position.findFirst({
-        where: {
-          userId,
-          marketId,
-        },
-      });
-
-      if (!position) {
-        res.status(400).json({
-          error: "POSITION_NOT_FOUND",
-          message: "Position not found",
-        });
-        return;
-      }
-
-      const sharesToSell: Decimal =
-        side === "YES" ? position.yesShares : position.noShares;
-
-      if (sharesToSell.lt(amount)) {
-        res.status(400).json({
-          error: "INSUFFICIENT_SHARES",
-          message: "You do not own enough shares to sell",
-        });
-        return;
-      }
-    }
     let newYesPool;
     let newNoPool;
     let delta;
     let finalAmountAfter;
     let finalFeeAmount;
     const { trade, mkt, userData } = await prisma.$transaction(async (tx) => {
-      await tx.$queryRawUnsafe(
-        `SELECT * FROM "Market" WHERE id = $1 FOR UPDATE`,
-        marketId
-      );
+      const [lockedMarket] = await tx.$queryRaw<
+        Market[]
+      >`SELECT * FROM "Market" WHERE id = ${marketId} FOR UPDATE`;
 
-      const k = market.yesPool.mul(market.noPool);
+      if (!lockedMarket) {
+        throw new Error("Market Not found");
+      }
+
+      if (lockedMarket.status === "CLOSED") {
+        throw new Error("Market is closed");
+      }
+
+      const [user] = await tx.$queryRaw<
+        { id: string; balance: Decimal }[]
+      >`SELECT "id", "balance" FROM "User" where "id" = ${userId} FOR UPDATE`;
+
+      if (!user) {
+        throw new Error("User not found");
+      }
+      if (action === "BUY" && user.balance.lt(amount)) {
+        throw new Error("Insufficient balance");
+      }
+
+      if (action === "SELL") {
+        const [position] = await tx.$queryRaw<
+          { id: string; yesShares: Decimal; noShares: Decimal }[]
+        >`SELECT * FROM "Position" WHERE "userId" = ${userId} AND "marketId" = ${marketId} FOR UPDATE`;
+
+        if (!position) {
+          throw new Error("Position not found");
+        }
+
+        const sharesToSell: Decimal =
+          side === "YES" ? position.yesShares : position.noShares;
+
+        if (sharesToSell.lt(amount)) {
+          throw new Error("Insufficient shares");
+        }
+      }
+
+      const k = lockedMarket.yesPool.mul(lockedMarket.noPool);
 
       const { finalAmount, fees } = calculateFinalAmount(
         amount,
-        market.feePercent
+        lockedMarket.feePercent,
       );
 
       finalFeeAmount = fees;
 
       if (action === "BUY") {
         if (side === "YES") {
-          newYesPool = market.yesPool.plus(finalAmount);
+          newYesPool = lockedMarket.yesPool.plus(finalAmount);
           newNoPool = k.div(newYesPool);
-          delta = new Decimal(market.noPool).minus(newNoPool);
+          delta = new Decimal(lockedMarket.noPool).minus(newNoPool);
 
           await tx.position.upsert({
             where: {
@@ -316,9 +290,9 @@ const placeTradeController = async (req: Request, res: Response) => {
             },
           });
         } else {
-          newNoPool = market.noPool.plus(finalAmount);
+          newNoPool = lockedMarket.noPool.plus(finalAmount);
           newYesPool = k.div(newNoPool);
-          delta = new Decimal(market.yesPool).minus(newYesPool);
+          delta = new Decimal(lockedMarket.yesPool).minus(newYesPool);
           await tx.position.upsert({
             where: {
               userId_marketId: {
@@ -351,13 +325,13 @@ const placeTradeController = async (req: Request, res: Response) => {
         });
       } else {
         if (side === "YES") {
-          newYesPool = market.yesPool.plus(amount);
+          newYesPool = lockedMarket.yesPool.plus(amount);
           newNoPool = k.div(newYesPool);
-          delta = market.noPool.minus(newNoPool);
+          delta = lockedMarket.noPool.minus(newNoPool);
 
           const { finalAmountAfterFees, fees } = calculateFinalAmountForSell(
             delta,
-            market.feePercent
+            lockedMarket.feePercent,
           );
           finalAmountAfter = finalAmountAfterFees;
           finalFeeAmount = fees;
@@ -381,13 +355,13 @@ const placeTradeController = async (req: Request, res: Response) => {
             },
           });
         } else {
-          newNoPool = market.noPool.plus(amount);
+          newNoPool = lockedMarket.noPool.plus(amount);
           newYesPool = k.div(newNoPool);
-          delta = market.yesPool.minus(newYesPool);
+          delta = lockedMarket.yesPool.minus(newYesPool);
 
           const { finalAmountAfterFees, fees } = calculateFinalAmountForSell(
             delta,
-            market.feePercent
+            lockedMarket.feePercent,
           );
           finalAmountAfter = finalAmountAfterFees;
           finalFeeAmount = fees;
@@ -479,8 +453,37 @@ const placeTradeController = async (req: Request, res: Response) => {
       market: mkt,
       user: userData,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.log(error);
+
+    if (error.message.includes("Insufficient balance")) {
+      res.status(400).json({
+        message: "Insufficient balance",
+      });
+      return;
+    }
+
+    if (error.message.includes("Market is closed")) {
+      res.status(423).json({
+        error: "MARKET_CLOSED",
+        message: "Trading is closed for this market",
+      });
+      return;
+    }
+
+    if (error.message.includes("Insufficient shares")) {
+      res.status(400).json({
+        message: "Insufficient shares",
+      });
+      return;
+    }
+
+    if (error.message.includes("Market not found")) {
+      res.status(404).json({
+        message: "Market not found",
+      });
+      return;
+    }
 
     res.status(500).json({
       message: "Internal Server Error",
@@ -490,7 +493,7 @@ const placeTradeController = async (req: Request, res: Response) => {
 
 const fetchProbabilityOverTimeChartDataController = async (
   req: Request,
-  res: Response
+  res: Response,
 ) => {
   try {
     const { marketId } = req.params;
@@ -549,7 +552,7 @@ const fetchProbabilityOverTimeChartDataController = async (
 
 const fetchParticipationChartDataController = async (
   req: Request,
-  res: Response
+  res: Response,
 ) => {
   try {
     const { marketId } = req.params;
@@ -691,7 +694,7 @@ const claimPayoutController = async (req: Request, res: Response) => {
         LIMIT 1 FOR UPDATE
         `,
         userId,
-        marketId
+        marketId,
       );
 
       const position = positions[0];

@@ -1,36 +1,45 @@
 import { Worker, Job } from "bullmq";
 import { prisma } from "@repo/db";
 import { redisclient } from "@repo/redisclient";
+import type { MarketStatus } from "../../packages/db/generated/prisma/enums";
 
-new Worker(
+const closeMarketOnExpiry = async (marketId: string) => {
+  await prisma.$transaction(async (tx) => {
+
+    const markets = await tx.$queryRaw<{
+      status: MarketStatus,
+      id: string,
+    }[]>`SELECT "id", "status" FROM "Market" WHERE id = ${marketId} FOR UPDATE`
+
+    if (!markets || markets.length === 0) {
+      throw new Error("Market not found");
+    }
+
+    const market = markets[0]!;
+
+    if (market.status !== "OPEN") {
+      return;
+    }
+
+    await tx.market.update({
+      where: {
+        id: market.id
+      },
+      data: {
+        status: "CLOSED"
+      }
+    })
+  })
+}
+
+const worker = new Worker(
   "market-queue",
   async (job: Job) => {
     switch (job.name) {
       case "close-market-on-expiry": {
         const { marketId } = job.data;
 
-        const market = await prisma.market.findUnique({
-          where: {
-            id: marketId,
-          },
-        });
-
-        if (!market) {
-          throw new Error("Market not found!");
-        } else if (market.status === "CLOSED") {
-          throw new Error("Market is alreday closed");
-        } else if (market.status === "RESOLVED") {
-          throw new Error("Market is alreday resolved");
-        }
-
-        await prisma.market.update({
-          where: {
-            id: marketId,
-          },
-          data: {
-            status: "CLOSED",
-          },
-        });
+        await closeMarketOnExpiry(marketId)
 
         break;
       }
@@ -40,3 +49,7 @@ new Worker(
     connection: redisclient,
   }
 );
+
+worker.on("error", (err) => {
+  console.error(err.message)
+})
